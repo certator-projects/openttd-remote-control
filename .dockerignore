@@ -37,8 +37,8 @@
 !pixi.lock
 !pixi.toml
 
-!gplv3_version/pixi.lock
-!gplv3_version/pixi.toml
+!contrib/grpc_server/pixi.lock
+!contrib/grpc_server/pixi.toml
 
 # Exclude build directories even if included above
 build/

@@ -1,6 +1,6 @@
 # OpenTTD dedicated server (GPLv2-compatible default stack).
-# Builds libottd_rpc_example and installs OpenTTD to /opt/openttd.
-# Use with docker-compose.yml (no gRPC / Apache-2.0 runtime in the game process).
+# Builds libottd_rpc_example, libottd_uds_bridge and installs OpenTTD to /opt/openttd.
+# Use with docker-compose.yml (UDS bridge in-process; gRPC in grpc-server container).
 
 FROM ghcr.io/prefix-dev/pixi:latest AS base_set
 
@@ -29,10 +29,25 @@ FROM pixi_base AS runtime
 COPY cmake/OttdProtobufLite.cmake ./cmake/OttdProtobufLite.cmake
 
 COPY contrib/libottd_rpc_example/ /build/contrib/libottd_rpc_example/
+COPY contrib/ottd_uds_ipc/ /build/contrib/ottd_uds_ipc/
+COPY contrib/libottd_uds_bridge/ /build/contrib/libottd_uds_bridge/
 
 RUN --mount=type=cache,target=/root/.cache/ccache \
     mkdir -p contrib/libottd_rpc_example/build-debug && \
     cd contrib/libottd_rpc_example/build-debug && \
+    pixi run bash -c ' \
+        cmake .. \
+         -DCMAKE_C_COMPILER_LAUNCHER="$(command -v ccache)" \
+         -DCMAKE_CXX_COMPILER_LAUNCHER="$(command -v ccache)" \
+         -DCMAKE_BUILD_TYPE=Release \
+         -DCMAKE_CXX_FLAGS="-w" \
+         -DCMAKE_C_FLAGS="-w" && \
+        cmake --build . -- --jobs=$(nproc) \
+    '
+
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    mkdir -p contrib/libottd_uds_bridge/build-debug && \
+    cd contrib/libottd_uds_bridge/build-debug && \
     pixi run bash -c ' \
         cmake .. \
          -DCMAKE_C_COMPILER_LAUNCHER="$(command -v ccache)" \

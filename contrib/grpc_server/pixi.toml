@@ -1,5 +1,5 @@
 [workspace]
-name = "openttd-abi"
+name = "ottd-grpc-server"
 channels = ["conda-forge"]
 platforms = ["linux-aarch64"]
 
@@ -19,4 +19,5 @@ libprotobuf = "*"
 protobuf = "*"
 grpcio = "*"
 libgrpc = "*"
+boost = "*"
 

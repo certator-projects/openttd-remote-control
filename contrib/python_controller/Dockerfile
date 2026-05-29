@@ -1,5 +1,5 @@
-# Example gRPC controller for docker-compose.gplv3.yml (python-controller service).
-# Connects to libottd_grpc_server inside the openttd container.
+# Example gRPC controller for docker-compose.yml (python-controller service).
+# Connects to the grpc-server container.
 
 FROM python:3.14-slim
 

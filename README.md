@@ -9,9 +9,10 @@ This fork is based on upstream OpenTTD **15.3** (commit `14ec60f`), not `master`
 Changes since that baseline:
 
 * **ABI RPC layer** (`src/3rdparty/extras/abi_rpc/`) — proof-of-concept runtime plugin interface with protobuf-defined messages, enabling **external control via ABI** instead of writing game logic in Squirrel.
-* **Runtime plugins** — `libottd_rpc_example` (default path) and optional `libottd_grpc_server`.
-* **Python controller** — example external client for the gRPC plugin path (`contrib/python_controller/`).
-* **Docker compose stacks** — default (GPLv2-compatible) and optional gplv3 (gRPC) configurations.
+* **Runtime plugins** — `libottd_rpc_example` (minimal demo) and `libottd_uds_bridge` (Unix domain socket IPC into OpenTTD).
+* **gRPC server** — standalone `ottd_grpc_server` executable (`contrib/grpc_server/`) that talks to the bridge over UDS; keeps Apache-2.0 gRPC out of the game process.
+* **Python controller** — example external gRPC client (`contrib/python_controller/`).
+* **Docker Compose** — OpenTTD + UDS bridge, `grpc-server`, and optional `python-controller` in one stack ([`docker-compose.yml`](/docker-compose.yml)).
 
 This fork is **not intended for contribution** to [official OpenTTD](https://github.com/openttd/openttd): modifications were co-authored with an LLM (which violates upstream contribution policy), and the extra code would add maintenance burden upstream is not set up to carry.
 
@@ -35,8 +36,9 @@ The repository intentionally separates:
 | Component               | License      | Note |
 | ----------------------- | ------------ | ---- |
 | OpenTTD                 | GPLv2        | |
-| gRPC                    | Apache-2.0   | used by libottd_grpc_server, which is under MIT license itself |
+| gRPC (`contrib/grpc_server`) | Apache-2.0   | separate process/container; MIT-licensed wrapper code |
 | protobuf                | BSD-3-Clause | |
+| UDS IPC + bridge plugin | MIT          | `contrib/ottd_uds_ipc`, `contrib/libottd_uds_bridge` |
 | runtime plugin examples | MIT          | |
 
 The default configuration is designed to remain GPLv2-compatible and does **not** link OpenTTD against Apache-2.0 gRPC components.
@@ -47,17 +49,18 @@ The default configuration is designed to remain GPLv2-compatible and does **not*
 
 ```text
 .
-├── docker-compose.yml              # default Docker build (libottd_rpc_example)
-├── docker-compose.gplv3.yml        # GPLv3 Docker build (libottd_grpc_server + python_controller)
+├── docker-compose.yml              # OpenTTD + UDS bridge + grpc-server + python-controller
+├── Dockerfile                      # OpenTTD image (GPLv2-compatible deps)
 ├── contrib/
 │   ├── content/scenario/           # example scenario files (.scn)
-│   ├── libottd_grpc_server/        # optional gRPC runtime plugin
-│   ├── libottd_rpc_example/        # default minimal runtime plugin
+│   ├── grpc_server/                # standalone gRPC executable (+ pixi env for Docker build)
+│   ├── libottd_uds_bridge/         # UDS IPC bridge plugin (loaded in OpenTTD)
+│   ├── libottd_rpc_example/        # minimal runtime plugin demo
+│   ├── ottd_uds_ipc/               # shared UDS framing protocol (header-only)
 │   └── python_controller/          # Python gRPC client/controller examples
-├── src/3rdparty/extras/
-│   └── abi_rpc/                    # ABI RPC layer integrated into OpenTTD
-│       └── proto/                  # canonical protobuf service definitions
-└── gplv3_version/                  # alternate Dockerfile for GPLv3-compatible build
+└── src/3rdparty/extras/
+    └── abi_rpc/                    # ABI RPC layer integrated into OpenTTD
+        └── proto/                  # canonical protobuf service definitions
 ```
 
 Example scenarios live under `contrib/content/scenario/` (e.g. `example.scn`, `example-no-script.scn`).
@@ -81,37 +84,38 @@ This plugin is loaded automatically in the **default Docker image** via `OTTD_US
 
 ---
 
-### `libottd_grpc_server`
+### `libottd_uds_bridge`
 
-Optional experimental plugin using:
+GPLv2-compatible runtime plugin loaded into OpenTTD. It exposes the ABI RPC surface on a **Unix domain socket** so out-of-process tools can call into the game without linking Apache-2.0 libraries into the OpenTTD binary.
 
-* gRPC,
-* protobuf,
-* Apache-2.0 licensed runtime libraries (gRPC and abseil).
+* configured with `OTTD_UDS_BRIDGE_ENABLED` and `OTTD_UDS_SOCKET_PATH`,
+* uses Boost.Asio for local IPC ([`contrib/ottd_uds_ipc`](/contrib/ottd_uds_ipc)),
+* see [contrib/libottd_uds_bridge](/contrib/libottd_uds_bridge) (build via `manage.sh build-plugin-libottd_uds_bridge-debug`).
 
-This plugin is intentionally isolated from OpenTTD internals and communicates only through the repository-defined ABI/protobuf interfaces — so it can be built and distributed separately from OpenTTD sources.
+---
 
-The gRPC plugin:
+### `grpc_server` (`ottd_grpc_server`)
 
-* does not use OpenTTD source code,
-* does not include OpenTTD internal headers,
-* does not depend on OpenTTD internal data structures.
+Standalone executable (not a plugin) that:
 
-However, because the plugin is dynamically loaded into the OpenTTD process, users must independently evaluate licensing compatibility for their intended distribution model.
+* runs the async gRPC server,
+* forwards each RPC to OpenTTD through the UDS bridge,
+* is built with the Apache-2.0 gRPC stack in its **own** pixi environment ([`contrib/grpc_server/pixi.toml`](/contrib/grpc_server/pixi.toml)),
+* has a dedicated Docker image ([`contrib/grpc_server/Dockerfile`](/contrib/grpc_server/Dockerfile)).
 
-This plugin is **NOT** enabled in the default configuration.
+See [contrib/grpc_server/README.md](contrib/grpc_server/README.md).
 
 ---
 
 ### `python_controller`
 
-Example **external** controller that talks to OpenTTD through the gRPC plugin (not through Squirrel or in-process ABI directly).
+Example **external** controller that connects to `ottd_grpc_server` over gRPC (not Squirrel or in-process ABI).
 
 Purpose:
 
 * demonstrates end-to-end remote control from Python,
 * provides generated protobuf client stubs and runnable examples under `controller/`,
-* runs as a separate container/service in `docker-compose.gplv3.yml`.
+* runs as the `python-controller` service in [`docker-compose.yml`](/docker-compose.yml).
 
 See [contrib/python_controller/README.md](contrib/python_controller/README.md) for local usage.
 
@@ -121,20 +125,22 @@ See [contrib/python_controller/README.md](contrib/python_controller/README.md) f
 
 | Variable | Used by | Description |
 | -------- | ------- | ----------- |
-| `OTTD_USE_RPC_PLUGIN` | OpenTTD (`abi_rpc` plugin loader) | Path to the `.so` / `.dylib` plugin to load at startup. Unset = no plugin loaded. |
-| `OTTD_GRPC_ENABLED` | `libottd_grpc_server` | Set to `1` or `true` to start the in-process gRPC server inside the plugin. |
-| `OTTD_GRPC_HOSTNAME` | `libottd_grpc_server`, `python_controller` | Hostname/IP to bind (plugin) or connect to (controller). |
-| `OTTD_GRPC_PORT` | `libottd_grpc_server`, `python_controller` | gRPC port (default `50051`). |
+| `OTTD_USE_RPC_PLUGIN` | OpenTTD | Path to the bridge (or example) `.so` / `.dylib`. Unset = no plugin. |
+| `OTTD_UDS_BRIDGE_ENABLED` | `libottd_uds_bridge` | Set to `1` or `true` to bind the UDS socket. |
+| `OTTD_UDS_SOCKET_PATH` | bridge + `ottd_grpc_server` | Shared socket path (default `/run/openttd/rpc.sock`). |
+| `OTTD_GRPC_ENABLED` | `ottd_grpc_server` | Set to `1` or `true` to start the gRPC server process. |
+| `OTTD_GRPC_HOSTNAME` | `ottd_grpc_server`, `python_controller` | gRPC bind / connect host. |
+| `OTTD_GRPC_PORT` | `ottd_grpc_server`, `python_controller` | gRPC port (default `50051`). |
 
-Default Docker compose files set these for you. For manual runs, export `OTTD_USE_RPC_PLUGIN` before starting the dedicated server; gRPC variables apply only when using `libottd_grpc_server`.
+[`docker-compose.yml`](/docker-compose.yml) sets these for the three services. For local runs: start OpenTTD with the UDS bridge plugin, then start `ottd_grpc_server` pointing at the same socket.
 
-**Ports exposed by the compose stacks:**
+**Ports exposed by Compose:**
 
 | Port | Protocol | Service |
 | ---- | -------- | ------- |
 | 3979 | TCP/UDP  | OpenTTD game server |
 | 3977 | TCP      | OpenTTD admin interface |
-| 50051 | TCP/UDP | gRPC (gplv3 configuration only) |
+| 50051 | TCP | `grpc-server` (gRPC) |
 
 ---
 
@@ -161,71 +167,33 @@ Example (matches the pinned Docker build):
 cmake .. -DOTTD_REV_OVERRIDE=15.3;20260404;0;14ec60f248547d4d062a1160f0fc26d742319888;1;1
 ```
 
-[Dockerfile](/Dockerfile) and [gplv3_version/Dockerfile](/gplv3_version/Dockerfile) pass this flag on configure. A checked-in `.ottdrev` is still supported when neither git nor `OTTD_REV_OVERRIDE` is available.
+[Dockerfile](/Dockerfile) passes this flag when building the OpenTTD image. A checked-in `.ottdrev` is still supported when neither git nor `OTTD_REV_OVERRIDE` is available.
 
 ---
 
-# Default Setup (GPLv2-Compatible)
+# Docker Compose Stack
 
-The default setup builds:
+The default [`docker-compose.yml`](/docker-compose.yml) builds and runs:
 
-* OpenTTD dedicated server,
-* `libottd_rpc_example` runtime plugin,
-* protobuf ABI layer.
+| Service | Image / build | Role |
+| ------- | ------------- | ---- |
+| `openttd` | [Dockerfile](/Dockerfile) | Dedicated server + `libottd_uds_bridge` (GPLv2-compatible pixi deps) |
+| `grpc-server` | [contrib/grpc_server/Dockerfile](/contrib/grpc_server/Dockerfile) | `ottd_grpc_server` (gRPC + Apache-2.0 stack, separate container) |
+| `python-controller` | [contrib/python_controller/Dockerfile](/contrib/python_controller/Dockerfile) | Example gRPC client |
 
-No Apache-2.0 gRPC runtime components are linked into the OpenTTD process in this configuration.
+OpenTTD and `grpc-server` share a Docker volume for the UDS socket at `/run/openttd`.
 
-Start the default setup:
-
-```bash
-docker-compose up
-```
-
-This configuration is the recommended default for:
-
-* development,
-* ABI experimentation,
-* protocol testing,
-* runtime loading demonstrations.
-
----
-
-# Optional gRPC Runtime Configuration
-
-An additional `docker-compose.gplv3.yml` compose file is provided for advanced users working with environments where all linked/runtime-loaded components are compatible with GPLv3 licensing terms.
-
-The optional configuration enables:
-
-* runtime loading of the gRPC plugin,
-* in-process gRPC communication,
-* protobuf RPC integration,
-* a companion `python-controller` service that connects over gRPC.
-
-Start the optional configuration:
+Start the stack:
 
 ```bash
-COMPOSE_FILE=docker-compose.gplv3.yml docker-compose up
+docker compose up --build
 ```
 
-The gplv3 stack mounts `contrib/content/scenario/example-no-script.scn` by default (no embedded game script — control is external via gRPC).
+The OpenTTD image does **not** link gRPC. Apache-2.0 dependencies exist only in the `grpc-server` container.
 
-## Important Licensing Notice
+## Licensing notice (gRPC path)
 
-The optional gRPC configuration introduces Apache-2.0 licensed runtime dependencies into the dynamically loaded plugin environment.
-
-This configuration:
-
-* is provided for experimental and research purposes,
-* is intended only for environments where all involved components are GPLv3-compatible,
-* is not intended for redistribution together with GPLv2-only OpenTTD builds.
-
-Users are responsible for independently verifying:
-
-* license compatibility,
-* redistribution rights,
-* compliance obligations for their specific build and deployment model.
-
-No claim of GPLv2/Apache-2.0 compatibility is made by this repository.
+You are responsible for evaluating license compatibility for your deployment (GPLv2 OpenTTD process + separately distributed gRPC binary/container). This repository does not assert GPLv2/Apache-2.0 compatibility for any combined distribution model.
 
 ---
 
@@ -246,45 +214,29 @@ Example simplified flow:
 
 ```text
 External controller (e.g. python_controller)
-    ↕
-gRPC (optional, via libottd_grpc_server)
-    ↕
-OpenTTD process
-    ↕
-runtime ABI
-    ↕
-protobuf transport
-    ↕
-plugin implementation
+    ↕ gRPC
+ottd_grpc_server (contrib/grpc_server)
+    ↕ UDS (OTRP framing, contrib/ottd_uds_ipc)
+libottd_uds_bridge plugin in OpenTTD process
+    ↕ ABI + protobuf
+OpenTTD core handlers (abi_rpc)
 ```
 
 ---
 
-# Why Two Configurations Exist
+# Process vs. plugin separation
 
-This repository intentionally separates:
-
-| Configuration | Purpose | Why |
-| ------------- | ------- | --- |
-| default | GPLv2-compatible runtime loading demo | Keeps the common path free of Apache-2.0 gRPC/Abseil while proving the ABI plugin model. |
-| gplv3 | optional experimental gRPC integration | Lets external clients (Python, etc.) control the server remotely; only for deployments where GPLv3-compatible combination of all runtime components is acceptable. |
-
-This mirrors common open-source practices where optional components may introduce additional licensing requirements depending on enabled build/runtime combinations.
+| Piece | Runs where | Why |
+| ----- | ---------- | --- |
+| OpenTTD + UDS bridge | Game container / process | GPLv2 runtime; Boost-only IPC in-process |
+| `ottd_grpc_server` | Separate binary / container | Apache-2.0 gRPC stack never loaded into OpenTTD |
+| `libottd_rpc_example` | Optional plugin | Minimal ABI demo without UDS or gRPC |
 
 ---
 
-# Distribution Notes
+# Distribution notes
 
-The default configuration may be redistributed under the terms of the included licenses.
-
-The optional gRPC runtime configuration may introduce additional licensing obligations depending on:
-
-* linked libraries,
-* runtime composition,
-* distribution model,
-* applicable GPL interpretation.
-
-Users distributing modified images or binaries should perform their own legal/compliance review.
+Redistribution obligations depend on which artifacts you ship (OpenTTD binary, bridge plugin, gRPC server binary, images). Perform your own compliance review before publishing combined images or installers.
 
 ---
 
@@ -511,7 +463,7 @@ ABI plugin scoped memory manager interface in `src/3rdparty/extras/abi_rpc/scope
 
 ABI plugin example in `contrib/libottd_rpc_example` is licenced under the MIT license. See `contrib/libottd_rpc_example/LICENSE` for the complete license text.
 
-gRPC ABI plugin example in `contrib/libottd_grpc_server` is licenced under the MIT license. See `contrib/libottd_grpc_server/LICENSE` for the complete license text.
+UDS IPC headers in `contrib/ottd_uds_ipc`, the bridge plugin in `contrib/libottd_uds_bridge`, and the gRPC server in `contrib/grpc_server` are licenced under the MIT license. See each directory's `LICENSE` file.
 
 gRPC python controller service example in `contrib/python_controller` is licenced under the MIT license. See `contrib/python_controller/LICENSE` for the complete license text.
 

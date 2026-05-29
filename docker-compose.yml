@@ -15,10 +15,46 @@ services:
       # Admin port
       - "3977:3977/tcp"
     environment:
-      - OTTD_USE_RPC_PLUGIN=/build/contrib/libottd_rpc_example/build-debug/libottd_rpc_example.so
+      - OTTD_USE_RPC_PLUGIN=/build/contrib/libottd_uds_bridge/build-debug/libottd_uds_bridge.so
+      - OTTD_UDS_BRIDGE_ENABLED=1
+      - OTTD_UDS_SOCKET_PATH=/run/openttd/rpc.sock
     volumes:
+      - openttd-uds:/run/openttd
       - ./contrib/content/scenario/example.scn:/root/.local/share/openttd/content_download/scenario/example.scn
     restart: unless-stopped
     stdin_open: true
     tty: true
 
+  grpc-server:
+    build:
+      context: .
+      dockerfile: contrib/grpc_server/Dockerfile
+    depends_on:
+      - openttd
+    ports:
+      - "50051:50051/tcp"
+    environment:
+      - OTTD_GRPC_ENABLED=1
+      - OTTD_GRPC_HOSTNAME=0.0.0.0
+      - OTTD_GRPC_PORT=50051
+      - OTTD_UDS_SOCKET_PATH=/run/openttd/rpc.sock
+    volumes:
+      - openttd-uds:/run/openttd
+    restart: unless-stopped
+
+  python-controller:
+    build:
+      context: contrib/python_controller
+      dockerfile: Dockerfile
+    depends_on:
+      - grpc-server
+    environment:
+      - OTTD_GRPC_HOSTNAME=grpc-server
+      - OTTD_GRPC_PORT=50051
+      - OTTD_SCENARIO_PATH=example.scn
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  openttd-uds:

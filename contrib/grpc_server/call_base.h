@@ -1,12 +1,17 @@
-#ifndef GRPC_PLUGIN_CALL_BASE_H
-#define GRPC_PLUGIN_CALL_BASE_H
+#ifndef GRPC_SERVER_CALL_BASE_H
+#define GRPC_SERVER_CALL_BASE_H
+
+#include "plugin_interface.h"
+#include "../ottd_uds_ipc/ipc_protocol.hpp"
 
 #include <grpcpp/grpcpp.h>
 #include "admin.grpc.pb.h"
 #include "script_generic.pb.h"
-#include "plugin_interface.h"
-#include "spdlog/spdlog.h"
+
+#include <spdlog/spdlog.h>
 #include <functional>
+#include <memory>
+#include <string>
 
 using grpc::ServerAsyncResponseWriter;
 using grpc::ServerCompletionQueue;
@@ -14,8 +19,7 @@ using grpc::ServerContext;
 using grpc::Status;
 using openttd::Admin;
 
-extern HostOps g_host_ops;
-extern RPCHandler g_rpc_handler;
+extern std::string g_uds_socket_path;
 
 class CallBase
 {
@@ -24,9 +28,6 @@ public:
 	virtual ~CallBase() {}
 };
 
-/**
- * Convert GenericError error_code to gRPC status code.
- */
 inline grpc::StatusCode ErrorCodeToGrpcStatus(openttd::ErrorCode error_code)
 {
 	switch (error_code)
@@ -108,73 +109,50 @@ protected:
 	bool ExecuteRPCCallDirect(int32_t rpc_method_id, const char *method_name,
 							  std::string &error_reason, openttd::GenericError &generic_error)
 	{
-		if (g_rpc_handler == nullptr)
+		if (g_uds_socket_path.empty())
 		{
-			error_reason = std::string("RPCHandler not available for ") + method_name;
-			spdlog::error("[gRPC Plugin] {}", error_reason);
-			return false;
-		}
-
-		ScopedMemoryManager *mem_mgr = nullptr;
-		int32_t result = g_host_ops.memory.create(&mem_mgr);
-		if (result != 0 || mem_mgr == nullptr)
-		{
-			error_reason = std::string("Failed to create memory manager for ") + method_name;
-			spdlog::error("[gRPC Plugin] {}", error_reason);
+			error_reason = std::string("UDS socket path not configured for ") + method_name;
+			spdlog::error("[gRPC Server] {}", error_reason);
 			return false;
 		}
 
 		size_t request_size = request_.ByteSizeLong();
-		void *request_buffer = nullptr;
-
-		result = g_host_ops.memory.allocate(mem_mgr, request_size, &request_buffer);
-		if (result != 0)
-		{
-			g_host_ops.memory.destroy(mem_mgr);
-			error_reason = std::string("Failed to allocate memory for ") + method_name;
-			spdlog::error("[gRPC Plugin] {}", error_reason);
-			return false;
-		}
-
+		std::vector<uint8_t> request_buffer(request_size);
 		if (request_size > 0)
 		{
-			request_.SerializeToArray(request_buffer, request_size);
+			request_.SerializeToArray(request_buffer.data(), request_size);
 		}
 
-		void *response_buffer = nullptr;
-		size_t response_size = 0;
-		void *error_buffer = nullptr;
-		size_t error_size = 0;
-
-		result = g_rpc_handler(mem_mgr, rpc_method_id, request_buffer, request_size,
-							   &response_buffer, &response_size, &error_buffer, &error_size);
-
-		if (result != 0)
+		ottd::ipc::RpcResponse rpc_response{};
+		if (!ottd::ipc::CallRpc(g_uds_socket_path, rpc_method_id, request_buffer.data(), request_size, rpc_response))
 		{
-			g_host_ops.memory.destroy(mem_mgr);
-			error_reason = std::string(method_name) + " call failed: " +
-						   (g_host_ops.get_last_error ? g_host_ops.get_last_error(result) : "unknown error");
-			spdlog::error("[gRPC Plugin] {}", error_reason);
+			error_reason = std::string("UDS RPC call failed for ") + method_name;
+			spdlog::error("[gRPC Server] {}", error_reason);
 			return false;
 		}
 
-		if (error_buffer != nullptr && error_size > 0)
+		if (rpc_response.status != 0)
 		{
-			if (!generic_error.ParseFromArray(error_buffer, error_size))
+			error_reason = std::string(method_name) + " call failed with status " + std::to_string(rpc_response.status);
+			spdlog::error("[gRPC Server] {}", error_reason);
+			return false;
+		}
+
+		if (!rpc_response.error.empty())
+		{
+			if (!generic_error.ParseFromArray(rpc_response.error.data(), rpc_response.error.size()))
 			{
-				spdlog::warn("[gRPC Plugin] Failed to parse GenericError for {}", method_name);
+				spdlog::warn("[gRPC Server] Failed to parse GenericError for {}", method_name);
 			}
 		}
 
-		if (!reply_.ParseFromArray(response_buffer, response_size))
+		if (!reply_.ParseFromArray(rpc_response.response.data(), rpc_response.response.size()))
 		{
-			g_host_ops.memory.destroy(mem_mgr);
 			error_reason = std::string("Failed to parse response for ") + method_name;
-			spdlog::error("[gRPC Plugin] {}", error_reason);
+			spdlog::error("[gRPC Server] {}", error_reason);
 			return false;
 		}
 
-		g_host_ops.memory.destroy(mem_mgr);
 		return true;
 	}
 
@@ -249,4 +227,4 @@ void CreateABIProxyHandler(
 	new Handler(service, cq);
 }
 
-#endif /* GRPC_PLUGIN_CALL_BASE_H */
+#endif /* GRPC_SERVER_CALL_BASE_H */

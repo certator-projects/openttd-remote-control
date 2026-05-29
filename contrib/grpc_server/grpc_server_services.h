@@ -1,10 +1,8 @@
 /*
- * gRPC Server Plugin for OpenTTD
- * This plugin provides a gRPC interface to OpenTTD by acting as a bridge
- * between external gRPC clients and OpenTTD's C-ABI RPC interface.
+ * gRPC Server for OpenTTD
+ * Registers async gRPC services that forward to OpenTTD via UDS IPC.
  */
 
-#include "plugin_interface.h"
 #include "call_base.h"
 
 #include <grpcpp/grpcpp.h>

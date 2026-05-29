@@ -4,7 +4,6 @@
  * between external gRPC clients and OpenTTD's C-ABI RPC interface.
  */
 
-#include "plugin_interface.h"
 #include "call_base.h"
 
 #include <grpcpp/grpcpp.h>

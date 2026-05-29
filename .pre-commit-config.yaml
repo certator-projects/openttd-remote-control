@@ -24,9 +24,11 @@ repos:
           (?x)
           ^(
             src/3rdparty/extras
-            | contrib/libottd_grpc_server
+            | contrib/grpc_server
+            | contrib/libottd_uds_bridge
             | contrib/libottd_rpc_example
-          ).*\.(cpp|h)$
+            | contrib/ottd_uds_ipc
+          ).*\.(cpp|h|hpp)$
 
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13
