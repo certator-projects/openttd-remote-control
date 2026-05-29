@@ -1,0 +1,66 @@
+# Exclude everything by default
+*
+
+# Include essential source and build files
+!contrib/
+!src/
+!CMakeLists.txt
+!cmake/
+!vcpkg.json
+!*.in
+
+# Include media and binary assets needed for build
+!media/
+!bin/
+
+# Include OS-specific files
+!os/
+
+# Include documentation that gets bundled into the game
+!docs/
+
+# Include version and changelog
+!changelog.txt
+!changelog.md
+!known-bugs.txt
+!known-bugs.md
+
+# Include license and credits
+!COPYING.md
+!CREDITS.md
+!README.md
+!CONTRIBUTING.md
+
+# Include regression tests
+!regression/
+
+!pixi.lock
+!pixi.toml
+
+!gplv3_version/pixi.lock
+!gplv3_version/pixi.toml
+
+# Exclude build directories even if included above
+build/
+build-*/
+contrib/*/build/
+contrib/*/build-*/
+
+# Exclude specs and nested README copies (keep root docs for cmake install)
+**/spec*.md
+**/README*.md
+!README.md
+!changelog.md
+!known-bugs.md
+
+# Exclude development artifacts
+**/.git/
+**/.vscode/
+**/.vs/
+**/.idea/
+**/.cursor/
+**/.DS_Store
+**/*.swp
+**/*.swo
+**/*~
+**/compile_commands.json

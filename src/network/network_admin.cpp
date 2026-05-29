@@ -22,6 +22,7 @@
 #include "../map_func.h"
 #include "../rev.h"
 #include "../game/game.hpp"
+#include "../3rdparty/extras/abi_rpc/chat_notifications.h"
 
 #include "table/strings.h"
 
@@ -982,6 +983,8 @@ void NetworkAdminCompanyRemove(CompanyID company_id, AdminCompanyRemoveReason bc
 void NetworkAdminChat(NetworkAction action, DestType desttype, ClientID client_id, std::string_view msg, int64_t data, bool from_admin)
 {
 	if (from_admin) return;
+
+	AbiRpcChatNotifications::Enqueue(action, desttype, client_id, msg, data);
 
 	for (ServerNetworkAdminSocketHandler *as : ServerNetworkAdminSocketHandler::IterateActive()) {
 		if (as->update_frequency[ADMIN_UPDATE_CHAT].Test(AdminUpdateFrequency::Automatic)) {

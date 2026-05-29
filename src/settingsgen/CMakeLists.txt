@@ -19,5 +19,5 @@ if (NOT HOST_BINARY_DIR)
     add_executable(settingsgen ${sourcefiles})
 
     export(TARGETS settingsgen FILE ${CMAKE_BINARY_DIR}/settingsgen.cmake)
-    add_dependencies(tools settingsgen)
+    add_dependencies(openttd_tools settingsgen)
 endif()

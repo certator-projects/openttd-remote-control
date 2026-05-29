@@ -7,13 +7,19 @@ if(NOT REV_MINOR)
     set(REV_MINOR 0)
 endif()
 
+# find_version passes override via env to avoid shell splitting on ';' in make rules.
+if(NOT OTTD_REV_OVERRIDE AND DEFINED ENV{OTTD_REV_OVERRIDE} AND NOT "$ENV{OTTD_REV_OVERRIDE}" STREQUAL "")
+    set(OTTD_REV_OVERRIDE "$ENV{OTTD_REV_OVERRIDE}")
+endif()
+
 #
 # Finds the current version of the current folder.
 #
 
 find_package(Git QUIET)
 # ${CMAKE_SOURCE_DIR}/.git may be a directory or a regular file
-if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+# OTTD_REV_OVERRIDE skips git (same as no .git): semicolon-separated fields matching .ottdrev
+if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git" AND NOT FIND_VERSION_TAG_OVERRIDE AND NOT OTTD_REV_OVERRIDE)
     # Make sure LC_ALL is set to something desirable
     set(SAVED_LC_ALL "$ENV{LC_ALL}")
     set(ENV{LC_ALL} C)
@@ -103,6 +109,20 @@ if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
 
     # Restore LC_ALL
     set(ENV{LC_ALL} "${SAVED_LC_ALL}")
+elseif(OTTD_REV_OVERRIDE)
+    # May arrive as a CMake list or a single semicolon-separated string (e.g. from -D or find_version).
+    list(JOIN OTTD_REV_OVERRIDE ";" OTTD_REV_LINE)
+    set(OTTDREV "${OTTD_REV_LINE}")
+    list(LENGTH OTTDREV OTTDREV_LEN)
+    if(OTTDREV_LEN LESS 6)
+        message(FATAL_ERROR "OTTD_REV_OVERRIDE requires 6 semicolon-separated fields (version;isodate;modified;hash;istag;isstabletag); got ${OTTDREV_LEN} field(s) from '${OTTD_REV_LINE}'")
+    endif()
+    list(GET OTTDREV 0 REV_VERSION)
+    list(GET OTTDREV 1 REV_ISODATE)
+    list(GET OTTDREV 2 REV_MODIFIED)
+    list(GET OTTDREV 3 REV_HASH)
+    list(GET OTTDREV 4 REV_ISTAG)
+    list(GET OTTDREV 5 REV_ISSTABLETAG)
 elseif(EXISTS "${CMAKE_SOURCE_DIR}/.ottdrev")
     file(READ "${CMAKE_SOURCE_DIR}/.ottdrev" OTTDREV)
     string(REPLACE "\n" "" OTTDREV "${OTTDREV}")

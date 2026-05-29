@@ -97,6 +97,12 @@ static std::unique_ptr<uint8_t[]> _dedicated_video_mem;
 /* Whether a fork has been done. */
 bool _dedicated_forks;
 
+/* Whether the dedicated server is in standby mode. */
+bool _dedicated_standby;
+
+/* RPC plugin loader. */
+#include "../3rdparty/extras/abi_rpc/plugin_loader.h"
+
 extern bool SafeLoad(const std::string &filename, SaveLoadOperation fop, DetailedFileType dft, GameMode newgm, Subdirectory subdir, struct LoadFilter *lf = nullptr);
 
 static FVideoDriver_Dedicated iFVideoDriver_Dedicated;
@@ -201,12 +207,14 @@ void VideoDriver_Dedicated::MainLoop()
 #endif
 
 	/* Load the dedicated server stuff */
-	_is_network_server = true;
+	if (!_dedicated_standby) {
+		_is_network_server = true;
+	}
 	_network_dedicated = true;
 	_current_company = _local_company = COMPANY_SPECTATOR;
 
 	/* If SwitchMode is SM_LOAD_GAME / SM_START_HEIGHTMAP, it means that the user used the '-g' options */
-	if (_switch_mode != SM_LOAD_GAME && _switch_mode != SM_START_HEIGHTMAP) {
+	if (!_dedicated_standby && _switch_mode != SM_LOAD_GAME && _switch_mode != SM_START_HEIGHTMAP) {
 		StartNewGameWithoutGUI(GENERATE_NEW_SEED);
 	}
 
@@ -218,7 +226,21 @@ void VideoDriver_Dedicated::MainLoop()
 		if (!_dedicated_forks) DedicatedHandleKeyInput();
 		this->DrainCommandQueue();
 
-		this->Tick();
-		this->SleepTillNextTick();
+		if (_dedicated_standby) {
+			/* In standby mode, poll RPC plugin and sleep to avoid CPU overload */
+			/* Handle RPC plugin calls */
+			PluginLoader_HandleRPCCalls();
+			CSleep(100);
+
+			if (_is_network_server) // server start requested via StartNetworkServer RPC method
+			{
+				_dedicated_standby = false;
+			}
+		}
+		else
+		{
+			this->Tick();
+			this->SleepTillNextTick();
+		}
 	}
 }

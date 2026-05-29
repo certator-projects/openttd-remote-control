@@ -49,7 +49,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 
 # An empty target for the tools
-add_custom_target(tools)
+add_custom_target(openttd_tools)
 
 include(CompileFlags)
 compile_flags()
@@ -68,15 +68,24 @@ if(WIN32)
 endif()
 
 # Generate a target to determine version, which is execute every 'make' run
+if(OTTD_REV_OVERRIDE)
+    list(JOIN OTTD_REV_OVERRIDE ";" OTTD_REV_OVERRIDE_LINE)
+else()
+    set(OTTD_REV_OVERRIDE_LINE "")
+endif()
 add_custom_target(find_version
-        ${CMAKE_COMMAND}
+        COMMAND ${CMAKE_COMMAND} -E env
+                "OTTD_REV_OVERRIDE=${OTTD_REV_OVERRIDE_LINE}"
+                ${CMAKE_COMMAND}
                 -DFIND_VERSION_BINARY_DIR=${CMAKE_BINARY_DIR}/generated
                 -DCPACK_BINARY_DIR=${CMAKE_BINARY_DIR}
+                -DFIND_VERSION_TAG_OVERRIDE=${FIND_VERSION_TAG_OVERRIDE}
                 -DREV_MAJOR=${PROJECT_VERSION_MAJOR}
                 -DREV_MINOR=${PROJECT_VERSION_MINOR}
                 -DWINDOWS=${WIN32}
                 -P "${CMAKE_SOURCE_DIR}/cmake/scripts/FindVersion.cmake"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        VERBATIM
         BYPRODUCTS ${GENERATED_SOURCE_FILES}
 )
 
@@ -270,6 +279,7 @@ add_dependencies(openttd
     find_version)
 
 target_link_libraries(openttd_lib
+    openttd_abi_rpc_proto
     openttd::languages
     openttd::settings
     openttd::script_api

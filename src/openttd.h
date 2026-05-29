@@ -63,6 +63,8 @@ extern SwitchMode _switch_mode;
 extern GameSessionStats _game_session_stats;
 extern std::atomic<bool> _exit_game;
 extern bool _save_config;
+extern bool _rpc_settings_override; ///< If true, RPC has set network settings and they should not be overwritten by LoadFromConfig()
+extern bool _activate_dummy_game_script; ///< If true, activate the DUMM game script when loading a game/scenario without one
 
 /** Modes of pausing we've got */
 enum class PauseMode : uint8_t {

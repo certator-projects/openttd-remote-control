@@ -22,6 +22,27 @@ void IConsoleSetSetting(std::string_view name, int32_t value);
 void IConsoleGetSetting(std::string_view name, bool force_newgame = false);
 void IConsoleListSettings(std::string_view prefilter);
 
+/**
+ * Reusable core for console-style setting get (used by console and RPC surfaces).
+ * @param name Setting name as used by the in-game console.
+ * @param out_value Current value formatted as a string.
+ * @param out_error Human-readable error if operation fails.
+ * @param force_newgame When true, operate on _settings_newgame regardless of game mode.
+ * @return true on success, false on failure (out_error set).
+ */
+bool TryGetSettingValue(std::string_view name, std::string &out_value, std::string &out_error, bool force_newgame = false);
+
+/**
+ * Reusable core for console-style setting set (used by console and RPC surfaces).
+ * @param name Setting name as used by the in-game console.
+ * @param value Value string as accepted by the console.
+ * @param out_value Resulting value formatted as a string (after applying).
+ * @param out_error Human-readable error if operation fails.
+ * @param force_newgame When true, operate on _settings_newgame regardless of game mode.
+ * @return true on success, false on failure (out_error set).
+ */
+bool TrySetSettingValue(std::string_view name, std::string_view value, std::string &out_value, std::string &out_error, bool force_newgame = false);
+
 void LoadFromConfig(bool minimal = false);
 void SaveToConfig();
 

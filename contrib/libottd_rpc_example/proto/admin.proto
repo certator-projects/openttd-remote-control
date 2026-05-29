@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package openttd;
+
+service Admin {
+  rpc StartNetworkServer(StartNetworkServerRequest) returns (StartNetworkServerReply);
+  rpc GetNetworkClients(GetNetworkClientsRequest) returns (GetNetworkClientsReply);
+  rpc SendChatMessage(SendChatMessageRequest) returns (SendChatMessageReply);
+  rpc SendPrivateChatMessage(SendPrivateChatMessageRequest) returns (SendPrivateChatMessageReply);
+  rpc PollLastChatMessages(PollLastChatMessagesRequest) returns (PollLastChatMessagesReply);
+  rpc GetCompanyList(GetCompanyListRequest) returns (GetCompanyListReply);
+  rpc GetGameMode(GetGameModeRequest) returns (GetGameModeReply);
+}
+
+enum ServerVisibilityType {
+  LOCAL = 0;
+  PUBLIC = 1;
+  INVITE_ONLY = 2;
+}
+
+message StartNetworkServerRequest {
+  string server_name = 1;
+  uint32 max_clients = 2;
+  uint32 max_companies = 3;
+  ServerVisibilityType visibility_type = 4;
+  string scenario_path = 5;
+  string spectator_player_name = 6;
+  string server_password = 7;
+  string save_path = 8;
+}
+
+message StartNetworkServerReply {}
+
+enum GameModeType {
+  NEW_GAME_MENU = 0;
+  SCENARIO_EDITOR = 1;
+  HEIGHTMAP_EDITOR = 2;
+  SINGLE_GAME = 3;
+  MULTIPLAYER_CLIENT = 4;
+  MULTIPLAYER_SERVER = 5;
+  UNKNOWN = 6;
+}
+
+message GetGameModeRequest {}
+
+message GetGameModeReply {
+  GameModeType current_mode = 1;
+  GameModeType new_mode = 2;
+  bool is_dedicated = 3;
+  string server_name = 4;
+}
+
+message NetworkClient {
+  uint32 client_id = 1;
+  string client_name = 2;
+  uint32 company_id = 3;
+  bool is_spectator = 4;
+}
+
+message GetNetworkClientsRequest {}
+
+message GetNetworkClientsReply {
+  repeated NetworkClient clients = 1;
+}
+
+message SendChatMessageRequest {
+  string message = 1;
+}
+
+message SendChatMessageReply {}
+
+message SendPrivateChatMessageRequest {
+  uint32 client_id = 1;
+  string message = 2;
+}
+
+message SendPrivateChatMessageReply {}
+
+message PollLastChatMessagesRequest {}
+
+message ChatNotification {
+  uint64 received_unix_ms = 1;
+  NetworkActionType action = 2;
+  ChatDestType desttype = 3;
+  uint32 client_id = 4;
+  string message = 5;
+}
+
+message PollLastChatMessagesReply {
+  repeated ChatNotification messages = 1;
+}
+
+enum NetworkActionType {
+  NETWORK_ACTION_JOIN = 0;
+  NETWORK_ACTION_LEAVE = 1;
+  NETWORK_ACTION_SERVER_MESSAGE = 2;
+  NETWORK_ACTION_CHAT = 3;
+  NETWORK_ACTION_CHAT_COMPANY = 4;
+  NETWORK_ACTION_CHAT_CLIENT = 5;
+  NETWORK_ACTION_GIVE_MONEY = 6;
+  NETWORK_ACTION_NAME_CHANGE = 7;
+  NETWORK_ACTION_COMPANY_SPECTATOR = 8;
+  NETWORK_ACTION_COMPANY_JOIN = 9;
+  NETWORK_ACTION_COMPANY_NEW = 10;
+  NETWORK_ACTION_KICKED = 11;
+  NETWORK_ACTION_EXTERNAL_CHAT = 12;
+}
+
+enum ChatDestType {
+  DESTTYPE_BROADCAST = 0;
+  DESTTYPE_TEAM = 1;
+  DESTTYPE_CLIENT = 2;
+}
+
+message Company {
+  uint32 company_id = 1;
+  string company_name = 2;
+  repeated uint32 client_ids = 3;
+}
+
+message GetCompanyListRequest {}
+
+message GetCompanyListReply {
+  repeated Company companies = 1;
+}

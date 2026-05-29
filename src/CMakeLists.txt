@@ -134,6 +134,8 @@ add_files(
     crashlog.h
     currency.cpp
     currency.h
+    controllers/reset_company_controller.h
+    controllers/restart_game_controller.h
     date_gui.cpp
     date_gui.h
     debug.cpp

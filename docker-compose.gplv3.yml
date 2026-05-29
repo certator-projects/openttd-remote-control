@@ -1,0 +1,41 @@
+name: openttd-gplv3
+
+services:
+  openttd:
+    build:
+      context: .
+      target: runtime
+      dockerfile: gplv3_version/Dockerfile
+    ports:
+      # Game server port
+      - "3979:3979/tcp"
+      - "3979:3979/udp"
+      # Admin port
+      - "3977:3977/tcp"
+      # gRPC port
+      - "50051:50051/tcp"
+      - "50051:50051/udp"
+    environment:
+      - OTTD_USE_RPC_PLUGIN=/build/contrib/libottd_grpc_server/build-debug/libottd_grpc_server.so
+      - OTTD_GRPC_ENABLED=1
+      - OTTD_GRPC_HOSTNAME=[::]
+      - OTTD_GRPC_PORT=50051
+    volumes:
+      - ./contrib/content/scenario/example-no-script.scn:/root/.local/share/openttd/content_download/scenario/example-no-script.scn
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  python-controller:
+    build:
+      context: contrib/python_controller
+      dockerfile: Dockerfile
+    depends_on:
+      - openttd
+    environment:
+      - OTTD_GRPC_HOSTNAME=openttd
+      - OTTD_GRPC_PORT=50051
+      - OTTD_SCENARIO_PATH=example-no-script.scn
+    restart: unless-stopped
+    stdin_open: true
+    tty: true

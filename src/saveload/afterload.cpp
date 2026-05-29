@@ -547,6 +547,7 @@ static void StartScripts()
 	}
 
 	/* Start the GameScript. */
+	Game::ActivateDummyGameScriptIfNeeded();
 	Game::StartNew();
 
 	ShowScriptDebugWindowIfScriptError();

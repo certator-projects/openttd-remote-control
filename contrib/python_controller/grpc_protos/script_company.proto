@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package openttd;
+
+service ScriptCompany {
+  rpc GetQuarterlyCompanyValue(GetQuarterlyCompanyValueRequest) returns (GetQuarterlyCompanyValueReply) {}
+}
+
+message GetQuarterlyCompanyValueRequest {
+  int32 company = 1;
+  int32 quarter = 2;
+}
+
+message GetQuarterlyCompanyValueReply {
+  int64 company_value = 1;
+}

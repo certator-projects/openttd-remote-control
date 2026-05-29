@@ -20,6 +20,7 @@
 #include <../squirrel/sqvm.h>
 #include "../core/math_func.hpp"
 #include "../core/string_consumer.hpp"
+#include "../3rdparty/extras/abi_rpc/last_int_result.h"
 
 #include "../safeguards.h"
 
@@ -758,6 +759,9 @@ void Squirrel::InsertResult(bool result)
 void Squirrel::InsertResult(int result)
 {
 	ScriptAllocatorScope alloc_scope(this);
+
+	/* Store result for ABI-RPC to retrieve via ScriptGeneric.GetLastIntResult */
+	SetLastIntResult(result);
 
 	sq_pushinteger(this->vm, result);
 	if (this->IsSuspended()) { // Called before resuming a suspended script?

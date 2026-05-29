@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package openttd;
+
+// Console-backed RPCs (mirror dedicated game-console commands; server-only where applicable).
+
+service Console {
+  // reset_company — remove an idle human company.
+  rpc ResetCompany(ResetCompanyRequest) returns (ResetCompanyReply);
+
+  // setting_newgame — get/set a setting for the next game.
+  // When `value` is not set, returns the current newgame value.
+  rpc SettingNewgame(SettingNewgameRequest) returns (SettingNewgameReply);
+
+  // setting — get/set a setting for the current game.
+  // When `value` is not set, returns the current value.
+  rpc Setting(SettingRequest) returns (SettingReply);
+
+  // restart — restart the game (newgame vs current settings), matching the in-game `restart` command.
+  rpc Restart(RestartRequest) returns (RestartReply);
+}
+
+// reset_company — remove an idle human company (server-only).
+// company_id matches GetCompanyList.company_id (internal company index).
+message ResetCompanyRequest {
+  uint32 company_id = 1;
+}
+
+// Reply for ResetCompany — empty on success; errors via GenericError.
+message ResetCompanyReply {
+  // Empty - errors are reported via GenericError
+}
+
+// setting_newgame — get/set a setting for the next game.
+message SettingNewgameRequest {
+  // Setting name as used by the in-game console (e.g. "difficulty.max_loan").
+  string name = 1;
+
+  // When set, updates the newgame setting to this value.
+  // When not set, request is treated as "get".
+  optional string value = 2;
+}
+
+// Reply for SettingNewgame — returns the current value after the operation.
+message SettingNewgameReply {
+  // Current value (formatted as a string).
+  string value = 1;
+}
+
+// setting — get/set a setting for the current game.
+message SettingRequest {
+  // Setting name as used by the in-game console (e.g. "difficulty.max_loan").
+  string name = 1;
+
+  // When set, updates the setting to this value for the current game.
+  // When not set, request is treated as "get".
+  optional string value = 2;
+}
+
+// Reply for Setting — returns the current value after the operation.
+message SettingReply {
+  // Current value (formatted as a string).
+  string value = 1;
+}
+
+// restart — restart the game (mirrors dedicated console `restart`).
+message RestartRequest {
+  // When unset or empty: same as `restart` with no extra argument (newgame path, current generation seed).
+  // "newgame" — explicit newgame restart.
+  // "current" — restart with current map log dimensions (`SM_RESTARTGAME`).
+  optional string mode = 1;
+}
+
+// Reply for Restart — empty on success; errors via GenericError.
+message RestartReply {
+}

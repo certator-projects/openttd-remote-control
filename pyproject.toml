@@ -1,0 +1,140 @@
+
+[tool.ruff]
+lint.select = [
+    "A",    # flake8-builtins
+    "ARG",  # flake8-unused-arguments
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "C90",  # McCabe complexity
+    "DTZ",  # flake-datetimez
+    "E",    # pycodestyle
+    "ERA",  # eradicate
+    "F",    # flake8
+    "FBT",  # flake8-boolean-trap
+    "FLY",  # flynt
+    "FURB", # refurb
+    "FURB105", # preview rule
+    "FURB113", # preview rule
+    "FURB131", # preview rule
+    "FURB132", # preview rule
+    "FURB140", # preview rule
+    "FURB145", # preview rule
+    "FURB148", # preview rule
+    "FURB177", # preview rule
+    "I",    # isort
+    "ICN",  # flake8-import-conventions
+    "INT",  # flake8-gettext
+    "ISC",  # flake8-implicit-str-concat
+    "LOG",  # flake8-logging
+    "N",    # pep8-naming
+    "PERF", # Perflint
+    "PGH",  # pygrep-hooks
+    "PIE",  # flake8-builtins
+    "PL",   # pylint
+    "PLC",  # Convention
+    "PLE",  # Error
+    "PLW",  # Warning
+    "PTH",  # flake8-use-pathlib
+    "PYI",  # flake8-pyi
+    "Q",    # flake8-quotes
+    "RET",  # flake8-return
+    "RSE",  # flake8-raise
+    "RUF",  # ruff specific rules
+    "S",    # flake8-bandit
+    "SIM",  # flake8-simplify
+    "SLOT", # flake8-slots
+    "T10",  # flake8-debugger
+    "T20",  # flake8-print
+    "TCH",  # flake8-type-checking
+    "TD",   # flake8-todos
+    "TRY",  # tryceratops
+    "UP",   # pyupgrade
+    "W",    # pycodestyle
+]
+lint.ignore=[
+    'E501', # Line too long - Leave this for formatter.
+    'TCH001', # We don't want to use type checking blocks
+    'TCH002', # typing-only-third-party-import
+    'TCH003', # typing-only-third-party-import
+    'TRY003', # Check for long exception messages that are not defined in the exception class itself
+    'ISC001', # disabled by ruff formatter suggestion
+    'TRY400', # Use `logging.exception` instead of `logging.error`
+    # TODO solve it one by one
+    'A001', # Variable is assigned to but never used
+    'ARG001', # Unused function argument
+    'ARG002', # Unused function argument
+    'B007', # Loop control variable not used within loop body
+    'C901', # Too complex
+    'DTZ005', # Call to `datetime.now()` without `tz` argument
+    'E402', # Module level import not at top of file
+    'E722', # Do not use bare `except`
+    'ERA001', # Found commented-out code
+    'F841', # Local variable is assigned to but never used
+    'FBT001', # Boolean-typed positional argument in function definition
+    'FBT002', # Boolean-typed positional argument in function definition
+    'FBT003', # Boolean positional value in function call
+    'FURB113', # Use `os.path.exists()` instead of `os.path.lexists()`
+    'PERF401', # Consider using a list comprehension instead of a `for` loop
+    'PLR091', # Too many arguments to function call
+    'PLR172', # Too many nested blocks
+    'PLR200', # Magic value used in comparison
+    'PLW290', # Using `for` loop with `range(len(...))`
+    'PTH103', # `os.path` abspath used, consider using `pathlib.Path`
+    'PTH104', # `os.path` exists used, consider using `pathlib.Path`
+    'PTH107', # `os.path` abspath used, consider using `pathlib.Path`
+    'PTH109', # `os.path` exists used, consider using `pathlib.Path`
+    'PTH110', # `os.path` join used, consider using `pathlib.Path`
+    'PTH116', # `os.path` abspath used, consider using `pathlib.Path`
+    'PTH119', # `os.path` dirname used, consider using `pathlib.Path`
+    'PTH120', # `os.path` basename used, consider using `pathlib.Path`
+    'PTH123', # `os.path` dirname used, consider using `pathlib.Path`
+    'PTH207', # `os.path` abspath used, consider using `pathlib.Path`
+    'RET504', # Unnecessary assignment before return
+    'RUF001', # Ambiguous Unicode character string
+    'RUF005', # Consider iterable unpacking instead of concatenation
+    'RUF015', # Consider iterable unpacking instead of concatenation
+    'S108', # Probable insecure usage of temp file/directory
+    'S110', # Probable insecure usage of temp file/directory
+    'S324', # Probable insecure usage of temp file/directory
+    'S603', # `subprocess` call: check for execution of untrusted input
+    'S606', # Starting a process without a shell
+    'S607', # Starting a process with a partial executable path
+    'SIM105', # Use `contextlib.suppress(...)` instead of try-except-pass
+    'SIM108', # Use `{key}` instead of `{key}` if `{key}` else `{key}`
+    'SIM117', # Use `{key}` instead of `{key}` if `{key}` else `{key}`
+    'SIM118', # Use `{key}` instead of `{key}` if `{key}` else `{key}`
+    'T201', # `print` found
+    'TD002', # Missing TODO author
+    'TD003', # Missing TODO author
+    'TD004', # Missing TODO author
+    'TRY300', # Consider moving this statement to an `else` block
+    'UP022', # Use `typing.Self` for `__enter__` methods returning `self`
+    'S602',
+    'S506',
+]
+lint.explicit-preview-rules = true
+target-version = "py311"
+exclude = [
+]
+
+preview = true
+
+[tool.ruff.lint.per-file-ignores]
+"contrib/python_controller/test/*" = [
+    "ARG",  # unused argument
+    "PL",   # magic value used in comparison
+    "S101", # assert used
+    "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
+]
+"contrib/python_controller/grpc_gen/*" = [
+    "F821",
+    "F401",
+    "UP035",
+    "RUF009",
+    "PGH003",
+]
+
+
+[tool.ruff.lint.isort]
+known-first-party = ["test"]
+

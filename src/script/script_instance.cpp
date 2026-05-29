@@ -210,8 +210,7 @@ void ScriptInstance::GameLoop()
 		try {
 			this->callback(*this);
 		} catch (Script_Suspend &e) {
-			this->suspend  = e.GetSuspendTime();
-			this->callback = e.GetSuspendCallback();
+			this->HandleScriptSuspend(e);
 
 			return;
 		}
@@ -241,8 +240,7 @@ void ScriptInstance::GameLoop()
 			/* Start the script by calling Start() */
 			if (!this->engine->CallMethod(*this->instance, "Start",  _settings_game.script.script_max_opcode_till_suspend) || !this->engine->IsSuspended()) this->Died();
 		} catch (Script_Suspend &e) {
-			this->suspend  = e.GetSuspendTime();
-			this->callback = e.GetSuspendCallback();
+			this->HandleScriptSuspend(e);
 		} catch (Script_FatalError &e) {
 			this->is_dead = true;
 			this->engine->ThrowError(e.GetErrorMessage());
@@ -262,14 +260,19 @@ void ScriptInstance::GameLoop()
 	try {
 		if (!this->engine->Resume(_settings_game.script.script_max_opcode_till_suspend)) this->Died();
 	} catch (Script_Suspend &e) {
-		this->suspend  = e.GetSuspendTime();
-		this->callback = e.GetSuspendCallback();
+		this->HandleScriptSuspend(e);
 	} catch (Script_FatalError &e) {
 		this->is_dead = true;
 		this->engine->ThrowError(e.GetErrorMessage());
 		this->engine->ResumeError();
 		this->Died();
 	}
+}
+
+void ScriptInstance::HandleScriptSuspend(Script_Suspend &e)
+{
+	this->suspend  = e.GetSuspendTime();
+	this->callback = e.GetSuspendCallback();
 }
 
 void ScriptInstance::CollectGarbage()

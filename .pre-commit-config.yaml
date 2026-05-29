@@ -1,0 +1,47 @@
+default_language_version:
+  python: python3.9
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        files: '^src/3rdparty/extras/'
+        exclude: ^.*\.md$
+      - id: end-of-file-fixer
+        files: '^src/3rdparty/extras'
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        files: '^src/3rdparty/extras'
+      - id: check-merge-conflict
+        files: '^src/3rdparty/extras'
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.2
+    hooks:
+      - id: clang-format
+        files: |
+          (?x)
+          ^(
+            src/3rdparty/extras
+            | contrib/libottd_grpc_server
+            | contrib/libottd_rpc_example
+          ).*\.(cpp|h)$
+
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+        files: '^src/3rdparty/extras.*CMakeLists\.txt|contrib.*CMakeLists\.txt$'
+      - id: cmake-lint
+        files: '^src/3rdparty/extras.*CMakeLists\.txt|contrib.*CMakeLists\.txt$'
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.7.0
+    hooks:
+      - id: ruff
+        additional_dependencies: [pyproject]
+        args: [--fix]
+        files: '^contrib/python_controller/.*\.py$'
+      - id: ruff-format
+        files: '^contrib/python_controller/.*\.py$'

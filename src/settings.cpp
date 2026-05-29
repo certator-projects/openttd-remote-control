@@ -1925,33 +1925,10 @@ void StringSettingDesc::ChangeValue(const void *object, std::string &&newval) co
  * and besides, it is also better to keep stuff like this at the same place */
 void IConsoleSetSetting(std::string_view name, std::string_view value, bool force_newgame)
 {
-	const SettingDesc *sd = GetSettingFromName(name);
-	/* Company settings are not in "list_settings", so don't try to modify them. */
-	if (sd == nullptr || sd->flags.Test(SettingFlag::PerCompany)) {
-		IConsolePrint(CC_ERROR, "'{}' is an unknown setting.", name);
-		return;
-	}
-
-	bool success = true;
-	if (sd->IsStringSetting()) {
-		success = SetSettingValue(sd->AsStringSetting(), value, force_newgame);
-	} else if (sd->IsIntSetting()) {
-		const IntSettingDesc *isd = sd->AsIntSetting();
-		size_t val = isd->ParseValue(value);
-		if (!_settings_error_list.empty()) {
-			IConsolePrint(CC_ERROR, "'{}' is not a valid value for this setting.", value);
-			_settings_error_list.clear();
-			return;
-		}
-		success = SetSettingValue(isd, (int32_t)val, force_newgame);
-	}
-
-	if (!success) {
-		if (_network_server) {
-			IConsolePrint(CC_ERROR, "This command/variable is not available during network games.");
-		} else {
-			IConsolePrint(CC_ERROR, "This command/variable is only available to a network server.");
-		}
+	std::string out_value;
+	std::string error;
+	if (!TrySetSettingValue(name, value, out_value, error, force_newgame)) {
+		IConsolePrint(CC_ERROR, "{}", error);
 	}
 }
 
@@ -1969,25 +1946,99 @@ void IConsoleSetSetting(std::string_view name, int value)
  */
 void IConsoleGetSetting(std::string_view name, bool force_newgame)
 {
-	const SettingDesc *sd = GetSettingFromName(name);
-	/* Company settings are not in "list_settings", so don't try to read them. */
-	if (sd == nullptr || sd->flags.Test(SettingFlag::PerCompany)) {
-		IConsolePrint(CC_ERROR, "'{}' is an unknown setting.", name);
+	std::string value;
+	std::string error;
+	if (!TryGetSettingValue(name, value, error, force_newgame)) {
+		IConsolePrint(CC_ERROR, "{}", error);
 		return;
 	}
 
-	const void *object = (_game_mode == GM_MENU || force_newgame) ? &_settings_newgame : &_settings_game;
-
-	if (sd->IsStringSetting()) {
-		IConsolePrint(CC_INFO, "Current value for '{}' is '{}'.", sd->GetName(), sd->AsStringSetting()->Read(object));
-	} else if (sd->IsIntSetting()) {
-		std::string value = sd->FormatValue(object);
-		const IntSettingDesc *int_setting = sd->AsIntSetting();
-		auto [min_val, max_val] = int_setting->GetRange();
-		auto def_val = int_setting->GetDefaultValue();
-		IConsolePrint(CC_INFO, "Current value for '{}' is '{}' (min: {}{}, max: {}, def: {}).",
-			sd->GetName(), value, sd->flags.Test(SettingFlag::GuiZeroIsSpecial) ? "(0) " : "", min_val, max_val, def_val);
+	const SettingDesc *sd = GetSettingFromName(name);
+	if (sd != nullptr && sd->IsIntSetting()) {
+		const IntSettingDesc *isd = sd->AsIntSetting();
+		auto [min_val, max_val] = isd->GetRange();
+		int32_t def_val = isd->GetDefaultValue();
+		IConsolePrint(CC_INFO, "Current value for '{}' is '{}' (min: {}, max: {}, def: {}).", name, value, min_val, max_val, def_val);
+		return;
 	}
+
+	IConsolePrint(CC_INFO, "Current value for '{}' is '{}'.", name, value);
+}
+
+static bool ConsumeSettingParseErrorsForConsole()
+{
+	if (_settings_error_list.empty()) return false;
+	_settings_error_list.clear();
+	return true;
+}
+
+bool TryGetSettingValue(std::string_view name, std::string &out_value, std::string &out_error, bool force_newgame)
+{
+	out_value.clear();
+	out_error.clear();
+
+	const SettingDesc *sd = GetSettingFromName(name);
+	/* Company settings are not in "list_settings", so don't try to read them. */
+	if (sd == nullptr || sd->flags.Test(SettingFlag::PerCompany)) {
+		out_error = fmt::format("'{}' is an unknown setting.", name);
+		return false;
+	}
+
+	const void *object = (_game_mode == GM_MENU || force_newgame) ? &_settings_newgame : &_settings_game;
+	if (sd->IsStringSetting()) {
+		out_value = sd->AsStringSetting()->Read(object);
+		return true;
+	}
+
+	if (sd->IsIntSetting()) {
+		out_value = sd->FormatValue(object);
+		return true;
+	}
+
+	out_error = "Unsupported setting type.";
+	return false;
+}
+
+bool TrySetSettingValue(std::string_view name, std::string_view value, std::string &out_value, std::string &out_error, bool force_newgame)
+{
+	out_value.clear();
+	out_error.clear();
+
+	const SettingDesc *sd = GetSettingFromName(name);
+	/* Company settings are not in "list_settings", so don't try to modify them. */
+	if (sd == nullptr || sd->flags.Test(SettingFlag::PerCompany)) {
+		out_error = fmt::format("'{}' is an unknown setting.", name);
+		return false;
+	}
+
+	bool success = true;
+	if (sd->IsStringSetting()) {
+		success = SetSettingValue(sd->AsStringSetting(), value, force_newgame);
+	} else if (sd->IsIntSetting()) {
+		const IntSettingDesc *isd = sd->AsIntSetting();
+		size_t val = isd->ParseValue(value);
+		if (ConsumeSettingParseErrorsForConsole()) {
+			out_error = fmt::format("'{}' is not a valid value for this setting.", value);
+			return false;
+		}
+		success = SetSettingValue(isd, (int32_t)val, force_newgame);
+	}
+
+	if (!success) {
+		out_error = _network_server
+			? "This command/variable is not available during network games."
+			: "This command/variable is only available to a network server.";
+		return false;
+	}
+
+	std::string tmp;
+	std::string err;
+	if (!TryGetSettingValue(name, tmp, err, force_newgame)) {
+		out_value.clear();
+		return true;
+	}
+	out_value = std::move(tmp);
+	return true;
 }
 
 static void IConsoleListSettingsTable(const SettingTable &table, std::string_view prefilter)

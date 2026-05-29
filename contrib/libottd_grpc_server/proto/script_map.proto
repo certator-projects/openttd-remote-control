@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package openttd;
+
+service ScriptMap {
+  rpc GetMapSizeX(GetMapSizeXRequest) returns (GetMapSizeXReply) {}
+  rpc GetMapSizeY(GetMapSizeYRequest) returns (GetMapSizeYReply) {}
+  rpc GetTileIndex(GetTileIndexRequest) returns (GetTileIndexReply) {}
+}
+
+message GetMapSizeXRequest {}
+
+message GetMapSizeXReply {
+  int32 size_x = 1;
+}
+
+message GetMapSizeYRequest {}
+
+message GetMapSizeYReply {
+  int32 size_y = 1;
+}
+
+message GetTileIndexRequest {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message GetTileIndexReply {
+  uint32 tile_index = 1;
+}

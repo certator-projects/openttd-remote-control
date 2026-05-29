@@ -168,6 +168,7 @@ static void _GenerateWorld()
 		StartupDisasters();
 		_generating_world = false;
 
+		Game::ActivateDummyGameScriptIfNeeded();
 		Game::StartNew();
 
 		/* No need to run the tile loop in the scenario editor. */

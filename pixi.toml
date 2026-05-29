@@ -1,0 +1,17 @@
+[workspace]
+name = "openttd-abi"
+channels = ["conda-forge"]
+platforms = ["linux-aarch64"]
+
+[dependencies]
+cmake = "*"
+cxx-compiler = "*"
+make = "*"
+libcurl = "*"
+liblzma = "*"
+lzo = "*"
+zlib = "*"
+xz = "*"
+libpng = "*"
+spdlog = "*"
+protobuf = "==3.20.3"  # pinned to avoid abseil dependency

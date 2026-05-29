@@ -255,6 +255,12 @@ public:
 	 **/
 	void ReleaseSQObject(HSQOBJECT *obj);
 
+	/**
+	 * Handle the suspend of the script.
+	 * @param e The suspend exception.
+	 */
+	void HandleScriptSuspend(Script_Suspend &e);
+
 protected:
 	std::unique_ptr<class Squirrel> engine; ///< A wrapper around the squirrel vm.
 	std::string api_version{}; ///< Current API used by this script.

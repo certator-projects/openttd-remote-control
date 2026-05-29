@@ -21,7 +21,7 @@ if (NOT HOST_BINARY_DIR)
     add_executable(strgen ${sourcefiles})
 
     export(TARGETS strgen FILE ${CMAKE_BINARY_DIR}/strgen.cmake)
-    add_dependencies(tools strgen)
+    add_dependencies(openttd_tools strgen)
 endif()
 
 if(OPTION_TOOLS_ONLY)

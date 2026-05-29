@@ -1,4 +1,304 @@
-# OpenTTD
+# OpenTTD gRPC Runtime Integration Demo
+
+Experimental runtime integration layer for OpenTTD using a dynamically loaded plugin and protobuf-based ABI communication.
+
+## Fork notes
+
+This fork is based on upstream OpenTTD **15.3** (commit `14ec60f`), not `master`, so the dedicated server stays compatible with the official client.
+
+Changes since that baseline:
+
+* **ABI RPC layer** (`src/3rdparty/extras/abi_rpc/`) — proof-of-concept runtime plugin interface with protobuf-defined messages, enabling **external control via ABI** instead of writing game logic in Squirrel.
+* **Runtime plugins** — `libottd_rpc_example` (default path) and optional `libottd_grpc_server`.
+* **Python controller** — example external client for the gRPC plugin path (`contrib/python_controller/`).
+* **Docker compose stacks** — default (GPLv2-compatible) and optional gplv3 (gRPC) configurations.
+
+This fork is **not intended for contribution** to [official OpenTTD](https://github.com/openttd/openttd): modifications were co-authored with an LLM (which violates upstream contribution policy), and the extra code would add maintenance burden upstream is not set up to carry.
+
+Upstream `.github` CI/workflows were removed for the same reason — this is a standalone research fork with no plan to merge back.
+
+ABI protobuf definitions, plugin interface headers, example plugin implementations, and Python controller scripts are licensed under MIT (see also [Licensing](#30-licensing) below for upstream components).
+
+---
+
+## Overview
+
+This repository demonstrates:
+
+* runtime loading of external `.so` plugins into the OpenTTD process — to keep OpenTTD core GPLv2-clean while experimenting with external controllers,
+* communication through a stable ABI and protobuf-defined interfaces — so plugins do not depend on OpenTTD internal headers or data structures,
+* optional gRPC-based control integration — for language-agnostic remote clients without linking gRPC into OpenTTD itself,
+* separation between the OpenTTD source tree and external runtime modules.
+
+The repository intentionally separates:
+
+| Component               | License      | Note |
+| ----------------------- | ------------ | ---- |
+| OpenTTD                 | GPLv2        | |
+| gRPC                    | Apache-2.0   | used by libottd_grpc_server, which is under MIT license itself |
+| protobuf                | BSD-3-Clause | |
+| runtime plugin examples | MIT          | |
+
+The default configuration is designed to remain GPLv2-compatible and does **not** link OpenTTD against Apache-2.0 gRPC components.
+
+---
+
+# Repository Layout
+
+```text
+.
+├── docker-compose.yml              # default Docker build (libottd_rpc_example)
+├── docker-compose.gplv3.yml        # GPLv3 Docker build (libottd_grpc_server + python_controller)
+├── contrib/
+│   ├── content/scenario/           # example scenario files (.scn)
+│   ├── libottd_grpc_server/        # optional gRPC runtime plugin
+│   ├── libottd_rpc_example/        # default minimal runtime plugin
+│   └── python_controller/          # Python gRPC client/controller examples
+├── src/3rdparty/extras/
+│   └── abi_rpc/                    # ABI RPC layer integrated into OpenTTD
+│       └── proto/                  # canonical protobuf service definitions
+└── gplv3_version/                  # alternate Dockerfile for GPLv3-compatible build
+```
+
+Example scenarios live under `contrib/content/scenario/` (e.g. `example.scn`, `example-no-script.scn`).
+
+---
+
+## Included Plugins
+
+### `libottd_rpc_example`
+
+A minimal runtime-loaded plugin used by the default Docker configuration.
+
+Purpose:
+
+* demonstrates dynamic loading,
+* demonstrates ABI boundaries,
+* demonstrates protobuf communication,
+* avoids Apache-2.0 runtime dependencies.
+
+This plugin is loaded automatically in the **default Docker image** via `OTTD_USE_RPC_PLUGIN`. A plain `cmake` build does nothing until that variable is set.
+
+---
+
+### `libottd_grpc_server`
+
+Optional experimental plugin using:
+
+* gRPC,
+* protobuf,
+* Apache-2.0 licensed runtime libraries (gRPC and abseil).
+
+This plugin is intentionally isolated from OpenTTD internals and communicates only through the repository-defined ABI/protobuf interfaces — so it can be built and distributed separately from OpenTTD sources.
+
+The gRPC plugin:
+
+* does not use OpenTTD source code,
+* does not include OpenTTD internal headers,
+* does not depend on OpenTTD internal data structures.
+
+However, because the plugin is dynamically loaded into the OpenTTD process, users must independently evaluate licensing compatibility for their intended distribution model.
+
+This plugin is **NOT** enabled in the default configuration.
+
+---
+
+### `python_controller`
+
+Example **external** controller that talks to OpenTTD through the gRPC plugin (not through Squirrel or in-process ABI directly).
+
+Purpose:
+
+* demonstrates end-to-end remote control from Python,
+* provides generated protobuf client stubs and runnable examples under `controller/`,
+* runs as a separate container/service in `docker-compose.gplv3.yml`.
+
+See [contrib/python_controller/README.md](contrib/python_controller/README.md) for local usage.
+
+---
+
+## Runtime Configuration
+
+| Variable | Used by | Description |
+| -------- | ------- | ----------- |
+| `OTTD_USE_RPC_PLUGIN` | OpenTTD (`abi_rpc` plugin loader) | Path to the `.so` / `.dylib` plugin to load at startup. Unset = no plugin loaded. |
+| `OTTD_GRPC_ENABLED` | `libottd_grpc_server` | Set to `1` or `true` to start the in-process gRPC server inside the plugin. |
+| `OTTD_GRPC_HOSTNAME` | `libottd_grpc_server`, `python_controller` | Hostname/IP to bind (plugin) or connect to (controller). |
+| `OTTD_GRPC_PORT` | `libottd_grpc_server`, `python_controller` | gRPC port (default `50051`). |
+
+Default Docker compose files set these for you. For manual runs, export `OTTD_USE_RPC_PLUGIN` before starting the dedicated server; gRPC variables apply only when using `libottd_grpc_server`.
+
+**Ports exposed by the compose stacks:**
+
+| Port | Protocol | Service |
+| ---- | -------- | ------- |
+| 3979 | TCP/UDP  | OpenTTD game server |
+| 3977 | TCP      | OpenTTD admin interface |
+| 50051 | TCP/UDP | gRPC (gplv3 configuration only) |
+
+---
+
+## CLI Flags
+
+The dedicated server accepts two additional flags introduced by this fork:
+
+| Flag | Purpose |
+| ---- | ------- |
+| `--standby` | Start the dedicated server idle, waiting for an RPC plugin to drive game startup (used by the Docker images). Requires a loaded RPC plugin. |
+| `--activate-dummy-game-script` | If no game script is configured, activate the bundled dummy game script (`DUMM`) so script-related RPC calls have a minimal GS context. |
+
+Both flags are passed by the default Docker `CMD`; omit them when running a stock dedicated server without the ABI layer.
+
+Docker images bundle the dummy game script as `dummydum-gs-08.tar` under the OpenTTD content download path.
+
+For reproducible **release** builds without a `.git` directory (for example Docker image builds), pass `OTTD_REV_OVERRIDE` to CMake. It is handled by [FindVersion.cmake](/cmake/scripts/FindVersion.cmake) and skips git-based version detection. Fields are semicolon-separated, in the same order as [`.ottdrev`](/.ottdrev) (tab-separated locally):
+
+`version;isodate;modified;hash;istag;isstabletag`
+
+Example (matches the pinned Docker build):
+
+```bash
+cmake .. -DOTTD_REV_OVERRIDE=15.3;20260404;0;14ec60f248547d4d062a1160f0fc26d742319888;1;1
+```
+
+[Dockerfile](/Dockerfile) and [gplv3_version/Dockerfile](/gplv3_version/Dockerfile) pass this flag on configure. A checked-in `.ottdrev` is still supported when neither git nor `OTTD_REV_OVERRIDE` is available.
+
+---
+
+# Default Setup (GPLv2-Compatible)
+
+The default setup builds:
+
+* OpenTTD dedicated server,
+* `libottd_rpc_example` runtime plugin,
+* protobuf ABI layer.
+
+No Apache-2.0 gRPC runtime components are linked into the OpenTTD process in this configuration.
+
+Start the default setup:
+
+```bash
+docker-compose up
+```
+
+This configuration is the recommended default for:
+
+* development,
+* ABI experimentation,
+* protocol testing,
+* runtime loading demonstrations.
+
+---
+
+# Optional gRPC Runtime Configuration
+
+An additional `docker-compose.gplv3.yml` compose file is provided for advanced users working with environments where all linked/runtime-loaded components are compatible with GPLv3 licensing terms.
+
+The optional configuration enables:
+
+* runtime loading of the gRPC plugin,
+* in-process gRPC communication,
+* protobuf RPC integration,
+* a companion `python-controller` service that connects over gRPC.
+
+Start the optional configuration:
+
+```bash
+COMPOSE_FILE=docker-compose.gplv3.yml docker-compose up
+```
+
+The gplv3 stack mounts `contrib/content/scenario/example-no-script.scn` by default (no embedded game script — control is external via gRPC).
+
+## Important Licensing Notice
+
+The optional gRPC configuration introduces Apache-2.0 licensed runtime dependencies into the dynamically loaded plugin environment.
+
+This configuration:
+
+* is provided for experimental and research purposes,
+* is intended only for environments where all involved components are GPLv3-compatible,
+* is not intended for redistribution together with GPLv2-only OpenTTD builds.
+
+Users are responsible for independently verifying:
+
+* license compatibility,
+* redistribution rights,
+* compliance obligations for their specific build and deployment model.
+
+No claim of GPLv2/Apache-2.0 compatibility is made by this repository.
+
+---
+
+# ABI Design
+
+The runtime plugin ABI is intentionally designed to remain independent from OpenTTD internals — external controllers can drive admin, console, and script-level actions without compiling against OpenTTD.
+
+Design goals:
+
+* stable C ABI boundary,
+* protobuf-defined messages (under `src/3rdparty/extras/abi_rpc/proto/` and mirrored in each plugin),
+* opaque handles,
+* no OpenTTD internal structure exposure,
+* independently buildable plugins,
+* runtime discovery/loading via `OTTD_USE_RPC_PLUGIN`.
+
+Example simplified flow:
+
+```text
+External controller (e.g. python_controller)
+    ↕
+gRPC (optional, via libottd_grpc_server)
+    ↕
+OpenTTD process
+    ↕
+runtime ABI
+    ↕
+protobuf transport
+    ↕
+plugin implementation
+```
+
+---
+
+# Why Two Configurations Exist
+
+This repository intentionally separates:
+
+| Configuration | Purpose | Why |
+| ------------- | ------- | --- |
+| default | GPLv2-compatible runtime loading demo | Keeps the common path free of Apache-2.0 gRPC/Abseil while proving the ABI plugin model. |
+| gplv3 | optional experimental gRPC integration | Lets external clients (Python, etc.) control the server remotely; only for deployments where GPLv3-compatible combination of all runtime components is acceptable. |
+
+This mirrors common open-source practices where optional components may introduce additional licensing requirements depending on enabled build/runtime combinations.
+
+---
+
+# Distribution Notes
+
+The default configuration may be redistributed under the terms of the included licenses.
+
+The optional gRPC runtime configuration may introduce additional licensing obligations depending on:
+
+* linked libraries,
+* runtime composition,
+* distribution model,
+* applicable GPL interpretation.
+
+Users distributing modified images or binaries should perform their own legal/compliance review.
+
+---
+
+# Status
+
+Experimental research project.
+
+No warranty is provided regarding:
+
+* production suitability,
+* ABI stability,
+* legal interpretation of combined runtime deployments.
+
+# OpenTTD (original Readme)
 
 ## Table of contents
 
@@ -202,6 +502,18 @@ See `src/3rdparty/openttd_social_integration_api/LICENSE` for the complete licen
 
 The atomic datatype support detection in `cmake/3rdparty/llvm/CheckAtomic.cmake` is licensed under the Apache 2.0 license.
 See `cmake/3rdparty/llvm/LICENSE.txt` for the complete license text.
+
+ABI protobuf protocol in `src/3rdparty/extras/abi_rpc/proto` is licenced under the MIT license. See `src/3rdparty/extras/abi_rpc/proto/LICENSE` for the complete license text.
+
+ABI plugin interface header in `src/3rdparty/extras/abi_rpc/plugin_interface.h` is licenced under the MIT license. Complete license text is located in the header of the file.
+
+ABI plugin scoped memory manager interface in `src/3rdparty/extras/abi_rpc/scoped_memory_manager.h` is licenced under the MIT license. Complete license text is located in the header of the file.
+
+ABI plugin example in `contrib/libottd_rpc_example` is licenced under the MIT license. See `contrib/libottd_rpc_example/LICENSE` for the complete license text.
+
+gRPC ABI plugin example in `contrib/libottd_grpc_server` is licenced under the MIT license. See `contrib/libottd_grpc_server/LICENSE` for the complete license text.
+
+gRPC python controller service example in `contrib/python_controller` is licenced under the MIT license. See `contrib/python_controller/LICENSE` for the complete license text.
 
 ## 4.0) Credits
 

@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package openttd;
+
+// ============================================================================
+// GenericError - standardized error reporting for RPC handlers
+// ============================================================================
+
+// Error codes for RPC operations
+// These map to gRPC status codes on the client side:
+// - OK (0) -> grpc::OK
+// - INVALID_ARGUMENT (1) -> grpc::INVALID_ARGUMENT
+// - OUT_OF_RANGE (2) -> grpc::OUT_OF_RANGE
+// - NOT_FOUND (3) -> grpc::NOT_FOUND
+// - INTERNAL (4) -> grpc::INTERNAL
+// - UNIMPLEMENTED (5) -> grpc::UNIMPLEMENTED
+enum ErrorCode {
+  ERROR_NONE = 0;
+  ERROR_INVALID_ARGUMENT = 1;
+  ERROR_OUT_OF_RANGE = 2;
+  ERROR_NOT_FOUND = 3;
+  ERROR_INTERNAL = 4;
+  ERROR_UNIMPLEMENTED = 5;
+}
+
+// GenericError is used by RPC handlers to report errors
+// When error_code is ERROR_NONE (0), no error occurred
+message GenericError {
+  ErrorCode error_code = 1;
+  string error_summary = 2;
+}
+
+// ============================================================================
+// ScriptGeneric service
+// ============================================================================
+
+// ScriptGeneric service - provides generic script utility methods
+// This service includes utility methods that span multiple script classes
+// or provide general-purpose functionality for script operations.
+service ScriptGeneric {
+  // GetLastIntResult returns the last integer result from script operations
+  // that complete asynchronously (e.g., ScriptGoal::New, ScriptSign::BuildSign).
+  //
+  // Background:
+  // Many Script API methods (especially those creating new entities like goals,
+  // signs, vehicles) don't return the created ID directly. Instead, they queue
+  // a command and return 0 (test mode). The actual ID is provided later via
+  // callbacks like DoCommandReturnGoalID which call Squirrel::InsertResult.
+  //
+  // For ABI-RPC callers, this method retrieves the last ID stored by InsertResult.
+  //
+  // Usage pattern:
+  // 1. Call ScriptGoal.New (returns 0)
+  // 2. Call ScriptGeneric.GetLastIntResult to get the actual GoalID
+  //
+  // Note: The value is set for any Squirrel::InsertResult(int) call, including
+  // GoalID, SignID, VehicleID, GroupID, StoryPageID, etc.
+  rpc GetLastIntResult(GetLastIntResultRequest) returns (GetLastIntResultReply) {}
+}
+
+// GetLastIntResult - retrieves the last integer result from script operations
+message GetLastIntResultRequest {
+  // No parameters needed - just returns the last stored value
+}
+
+message GetLastIntResultReply {
+  // The last integer result from a script operation.
+  // This could be a GoalID, SignID, VehicleID, or any other ID type
+  // that was returned via Squirrel::InsertResult(int).
+  int32 result = 1;
+}

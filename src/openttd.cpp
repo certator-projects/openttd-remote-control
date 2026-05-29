@@ -20,6 +20,7 @@
 #include "error_func.h"
 #include "gui.h"
 
+#include "3rdparty/extras/abi_rpc/plugin_loader.h"
 #include "base_media_base.h"
 #include "base_media_graphics.h"
 #include "base_media_music.h"
@@ -111,6 +112,9 @@ bool _save_config = false;
 bool _request_newgrf_scan = false;
 NewGRFScanCallback *_request_newgrf_scan_callback = nullptr;
 
+bool _rpc_settings_override = false; ///< If true, RPC has set network settings and they should not be overwritten by LoadFromConfig()
+bool _activate_dummy_game_script = false; ///< If true, activate the DUMM game script when loading a game/scenario without one
+
 /**
  * Error handling for fatal user errors.
  * @param str the string to print.
@@ -188,6 +192,8 @@ static void ShowHelp()
 		"  -q savegame         = Write some information about the savegame and exit\n"
 		"  -Q                  = Don't scan for/load NewGRF files on startup\n"
 		"  -QQ                 = Disable NewGRF scanning/loading entirely\n"
+		"  --standby           = Start dedicated server in standby mode (requires RPC plugin)\n"
+		"  --activate-dummy-game-script = Activate dummy game script (DUMM) when no other is configured\n"
 		"\n";
 
 	/* List the graphics packs */
@@ -401,8 +407,41 @@ struct AfterNewGRFScan : NewGRFScanCallback {
 
 		/* We want the new (correct) NewGRF count to survive the loading. */
 		uint last_newgrf_count = _settings_client.gui.last_newgrf_count;
+		
+		/* Save network settings if they were set via RPC to prevent LoadFromConfig() from overwriting them */
+		std::string saved_server_name;
+		std::string saved_server_password;
+		std::string saved_client_name;
+		uint8_t saved_max_clients = 0;
+		uint8_t saved_max_companies = 0;
+		ServerGameType saved_server_game_type = SERVER_GAME_TYPE_LOCAL;
+		bool saved_reload_cfg = false;
+		
+		if (_rpc_settings_override) {
+			saved_server_name = _settings_client.network.server_name;
+			saved_server_password = _settings_client.network.server_password;
+			saved_client_name = _settings_client.network.client_name;
+			saved_max_clients = _settings_client.network.max_clients;
+			saved_max_companies = _settings_client.network.max_companies;
+			saved_server_game_type = _settings_client.network.server_game_type;
+			saved_reload_cfg = _settings_client.network.reload_cfg;
+		}
+		
 		LoadFromConfig();
 		_settings_client.gui.last_newgrf_count = last_newgrf_count;
+		
+		/* Restore network settings if they were set via RPC */
+		if (_rpc_settings_override) {
+			_settings_client.network.server_name = saved_server_name;
+			_settings_client.network.server_password = saved_server_password;
+			_settings_client.network.client_name = saved_client_name;
+			_settings_client.network.max_clients = saved_max_clients;
+			_settings_client.network.max_companies = saved_max_companies;
+			_settings_client.network.server_game_type = saved_server_game_type;
+			_settings_client.network.reload_cfg = saved_reload_cfg;
+			_rpc_settings_override = false; // Reset the flag after use
+		}
+		
 		/* Since the default for the palette might have changed due to
 		 * reading the configuration file, recalculate that now. */
 		UpdateNewGRFConfigPalette();
@@ -488,6 +527,8 @@ static std::vector<OptionData> CreateOptions()
 #if !defined(_WIN32)
 	options.push_back({ .type = ODF_NO_VALUE, .id = 'f', .shortname = 'f' });
 #endif
+	options.push_back({ .type = ODF_NO_VALUE, .id = 1, .shortname = '\0', .longname = "--standby" });
+	options.push_back({ .type = ODF_NO_VALUE, .id = 2, .shortname = '\0', .longname = "--activate-dummy-game-script" });
 
 	return options;
 }
@@ -516,6 +557,11 @@ int openttd_main(std::span<std::string_view> arguments)
 
 	extern bool _dedicated_forks;
 	_dedicated_forks = false;
+
+	extern bool _dedicated_standby;
+	_dedicated_standby = false;
+
+	_activate_dummy_game_script = false;
 
 	_game_mode = GM_MENU;
 	_switch_mode = SM_MENU;
@@ -644,6 +690,8 @@ int openttd_main(std::span<std::string_view> arguments)
 		case 'c': _config_file = mgo.opt; break;
 		case 'x': scanner->save_config = false; break;
 		case 'X': only_local_path = true; break;
+		case 1: _dedicated_standby = true; break;
+		case 2: _activate_dummy_game_script = true; break;
 		case 'h': break; // handled below
 		}
 		if (i == 'h' || i == -2) break;
@@ -802,6 +850,16 @@ int openttd_main(std::span<std::string_view> arguments)
 	if (musicdriver.empty() && !_ini_musicdriver.empty()) musicdriver = _ini_musicdriver;
 	DriverFactoryBase::SelectDriver(musicdriver, Driver::DT_MUSIC);
 
+	/* Initialize and start RPC plugin if specified */
+	if (!PluginLoader_Initialize()) {
+		Debug(driver, 0, "Failed to initialize RPC plugin, continuing without it");
+	} else if (PluginLoader_IsLoaded()) {
+		if (!PluginLoader_Start()) {
+			Debug(driver, 0, "Failed to start RPC plugin, continuing without it");
+			PluginLoader_Shutdown();
+		}
+	}
+
 	GenerateWorld(GWM_EMPTY, 64, 64); // Make the viewport initialization happy
 	LoadIntroGame(false);
 
@@ -811,6 +869,10 @@ int openttd_main(std::span<std::string_view> arguments)
 	VideoDriver::GetInstance()->MainLoop();
 
 	PostMainLoop();
+
+	/* Shutdown RPC plugin */
+	PluginLoader_Shutdown();
+
 	return 0;
 }
 
@@ -1215,6 +1277,7 @@ void StateGameLoop()
 
 	/* Don't execute the state loop during pause or when modal windows are open. */
 	if (_pause_mode.Any() || HasModalProgress()) {
+		PluginLoader_HandleRPCCalls();
 		PerformanceMeasurer::Paused(PFE_GAMELOOP);
 		PerformanceMeasurer::Paused(PFE_GL_ECONOMY);
 		PerformanceMeasurer::Paused(PFE_GL_TRAINS);
@@ -1235,6 +1298,7 @@ void StateGameLoop()
 
 	if (_game_mode == GM_EDITOR) {
 		BasePersistentStorageArray::SwitchMode(PSM_ENTER_GAMELOOP);
+		PluginLoader_HandleRPCCalls();
 		RunTileLoop();
 		CallVehicleTicks();
 		CallLandscapeTick();
@@ -1270,6 +1334,7 @@ void StateGameLoop()
 
 #ifndef DEBUG_DUMP_COMMANDS
 		{
+			PluginLoader_HandleRPCCalls();
 			PerformanceMeasurer script_framerate(PFE_ALLSCRIPTS);
 			AI::GameLoop();
 			Game::GameLoop();

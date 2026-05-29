@@ -12,6 +12,7 @@
 #include "../company_base.h"
 #include "../company_func.h"
 #include "../network/network.h"
+#include "../openttd.h"
 #include "../window_func.h"
 #include "../framerate_type.h"
 #include "game.hpp"
@@ -67,6 +68,28 @@
 		Game::scanner_library = std::make_unique<GameScannerLibrary>();
 		Game::scanner_library->Initialize();
 	}
+}
+
+/* static */ void Game::ActivateDummyGameScriptIfNeeded()
+{
+	if (!_activate_dummy_game_script) return;
+
+	GameConfig *config = GameConfig::GetConfig(GameConfig::SSS_FORCE_GAME);
+	if (config->HasScript()) return;
+
+	const ScriptInfoList *info_list = Game::GetInfoList();
+	if (info_list == nullptr) return;
+
+	for (const auto &item : *info_list) {
+		ScriptInfo *info = item.second;
+		if (info != nullptr && info->GetShortName() == "DUMM") {
+			config->Change(info->GetName(), info->GetVersion());
+			Debug(script, 2, "Activated dummy game script '{}'", info->GetName());
+			return;
+		}
+	}
+
+	Debug(script, 0, "--activate-dummy-game-script was specified but dummy game script (DUMM) was not found");
 }
 
 /* static */ void Game::StartNew()

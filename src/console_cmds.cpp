@@ -38,11 +38,16 @@
 #include "newgrf.h"
 #include "newgrf_profiling.h"
 #include "console_func.h"
+#include "controllers/reset_company_controller.h"
+#include "controllers/restart_game_controller.h"
 #include "engine_base.h"
 #include "road.h"
 #include "rail.h"
 #include "game/game.hpp"
 #include "3rdparty/fmt/chrono.h"
+#include "3rdparty/fmt/format.h"
+
+#include "company_base.h"
 #include "company_cmd.h"
 #include "misc_cmd.h"
 
@@ -1059,6 +1064,68 @@ static bool ConMoveClient(std::span<std::string_view> argv)
 	return true;
 }
 
+/**
+ * Parse company-id argument for #ConResetCompany (console numbering).
+ * @param argv Command argv including command name as argv[0].
+ * @param out_error Error description when parsing fails (caller prints).
+ * @return Parsed company id, or std::nullopt on argv mismatch / parse failure.
+ */
+static std::optional<CompanyID> ConResetCompany_ParseCompanyId(std::span<std::string_view> argv, std::string &out_error)
+{
+	out_error.clear();
+	if (argv.size() != 2) return std::nullopt;
+
+	auto index = ParseCompanyID(argv[1]);
+	if (!index.has_value()) {
+		out_error = "The given company-id is not a valid number.";
+		return std::nullopt;
+	}
+
+	return *index;
+}
+
+/**
+ * Shared reset_company validation + deletion (no console output).
+ * @param company_id Parsed company id (same convention as console).
+ * @param out_error Human-readable failure reason (empty on success).
+ */
+static ResetCompanyControllerStatus ConResetCompany_Controller(CompanyID company_id, std::string &out_error)
+{
+	out_error.clear();
+
+	/* Check valid range */
+	if (!Company::IsValidID(company_id)) {
+		out_error = fmt::format("Company does not exist. company-id must be between 1 and {}.", MAX_COMPANIES);
+		return ResetCompanyControllerStatus::ErrorReturnTrue;
+	}
+
+	if (!Company::IsHumanID(company_id)) {
+		out_error = "Company is owned by an AI.";
+		return ResetCompanyControllerStatus::ErrorReturnTrue;
+	}
+
+	if (NetworkCompanyHasClients(company_id)) {
+		out_error = "Cannot remove company: a client is connected to that company.";
+		return ResetCompanyControllerStatus::ErrorReturnFalse;
+	}
+
+	const NetworkClientInfo *ci = NetworkClientInfo::GetByClientID(CLIENT_ID_SERVER);
+	assert(ci != nullptr);
+	if (ci->client_playas == company_id) {
+		out_error = "Cannot remove company: the server is connected to that company.";
+		return ResetCompanyControllerStatus::ErrorReturnTrue;
+	}
+
+	/* It is safe to remove this company */
+	Command<CMD_COMPANY_CTRL>::Post(CCA_DELETE, company_id, CRR_MANUAL, INVALID_CLIENT_ID);
+	return ResetCompanyControllerStatus::Success;
+}
+
+ResetCompanyControllerStatus ResetCompanyController(CompanyID company_id, std::string &out_error)
+{
+	return ConResetCompany_Controller(company_id, out_error);
+}
+
 static bool ConResetCompany(std::span<std::string_view> argv)
 {
 	if (argv.empty()) {
@@ -1067,40 +1134,20 @@ static bool ConResetCompany(std::span<std::string_view> argv)
 		return true;
 	}
 
-	if (argv.size() != 2) return false;
-
-	auto index = ParseCompanyID(argv[1]);
-	if (!index.has_value()) {
-		IConsolePrint(CC_ERROR, "The given company-id is not a valid number.");
-		return true;
+	std::string error;
+	std::optional<CompanyID> company_id = ConResetCompany_ParseCompanyId(argv, error);
+	if (!company_id.has_value()) {
+		if (!error.empty()) IConsolePrint(CC_ERROR, "{}", error);
+		return error.empty() ? false : true;
 	}
 
-	/* Check valid range */
-	if (!Company::IsValidID(*index)) {
-		IConsolePrint(CC_ERROR, "Company does not exist. company-id must be between 1 and {}.", MAX_COMPANIES);
-		return true;
+	ResetCompanyControllerStatus status = ConResetCompany_Controller(*company_id, error);
+	if (status != ResetCompanyControllerStatus::Success) {
+		IConsolePrint(CC_ERROR, "{}", error);
+		return status == ResetCompanyControllerStatus::ErrorReturnFalse ? false : true;
 	}
 
-	if (!Company::IsHumanID(*index)) {
-		IConsolePrint(CC_ERROR, "Company is owned by an AI.");
-		return true;
-	}
-
-	if (NetworkCompanyHasClients(*index)) {
-		IConsolePrint(CC_ERROR, "Cannot remove company: a client is connected to that company.");
-		return false;
-	}
-	const NetworkClientInfo *ci = NetworkClientInfo::GetByClientID(CLIENT_ID_SERVER);
-	assert(ci != nullptr);
-	if (ci->client_playas == *index) {
-		IConsolePrint(CC_ERROR, "Cannot remove company: the server is connected to that company.");
-		return true;
-	}
-
-	/* It is safe to remove this company */
-	Command<CMD_COMPANY_CTRL>::Post(CCA_DELETE, *index, CRR_MANUAL, INVALID_CLIENT_ID);
 	IConsolePrint(CC_DEFAULT, "Company deleted.");
-
 	return true;
 }
 
@@ -1338,6 +1385,26 @@ static bool ConNewGame(std::span<std::string_view> argv)
 	return true;
 }
 
+RestartGameControllerStatus RestartGameController(std::string_view mode, std::string &out_error)
+{
+	out_error.clear();
+
+	if (mode.empty() || StrEqualsIgnoreCase(mode, "newgame")) {
+		StartNewGameWithoutGUI(_settings_game.game_creation.generation_seed);
+		return RestartGameControllerStatus::Success;
+	}
+
+	if (StrEqualsIgnoreCase(mode, "current")) {
+		_settings_game.game_creation.map_x = Map::LogX();
+		_settings_game.game_creation.map_y = Map::LogY();
+		_switch_mode = SM_RESTARTGAME;
+		return RestartGameControllerStatus::Success;
+	}
+
+	out_error = "Invalid mode. Expected 'newgame' (default) or 'current'.";
+	return RestartGameControllerStatus::ErrorInvalidArgument;
+}
+
 static bool ConRestart(std::span<std::string_view> argv)
 {
 	if (argv.empty() || argv.size() > 2) {
@@ -1348,12 +1415,12 @@ static bool ConRestart(std::span<std::string_view> argv)
 		return true;
 	}
 
-	if (argv.size() == 1 || std::string_view(argv[1]) == "newgame") {
-		StartNewGameWithoutGUI(_settings_game.game_creation.generation_seed);
-	} else {
-		_settings_game.game_creation.map_x = Map::LogX();
-		_settings_game.game_creation.map_y = Map::LogY();
-		_switch_mode = SM_RESTARTGAME;
+	std::string error;
+	const std::string_view mode = (argv.size() == 1) ? std::string_view{} : argv[1];
+	const RestartGameControllerStatus status = RestartGameController(mode, error);
+	if (status != RestartGameControllerStatus::Success) {
+		if (!error.empty()) IConsolePrint(CC_ERROR, "{}", error);
+		return true;
 	}
 
 	return true;

@@ -1,0 +1,10 @@
+# Exclude everything by default
+*
+
+# Python controller image
+!pyproject.toml
+!uv.lock
+!controller/
+!controller/**
+!grpc_gen/
+!grpc_gen/**

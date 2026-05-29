@@ -35,6 +35,11 @@ public:
 	static void StartNew();
 
 	/**
+	 * When --activate-dummy-game-script is set, configure the DUMM game script if none is active.
+	 */
+	static void ActivateDummyGameScriptIfNeeded();
+
+	/**
 	 * Uninitialize the Game system.
 	 */
 	static void Uninitialize(bool keepConfig);

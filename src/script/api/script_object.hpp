@@ -65,12 +65,13 @@ class ScriptObject : public SimpleCountedObject {
 friend class ScriptInstance;
 friend class ScriptController;
 friend class TestScriptController;
-protected:
+public:
 	/**
 	 * A class that handles the current active instance. By instantiating it at
 	 *  the beginning of a function with the current active instance, it remains
 	 *  active till the scope of the variable closes. It then automatically
 	 *  reverts to the active instance it was before instantiating.
+	 * Made public to allow RPC handlers to activate game script context.
 	 */
 	class ActiveInstance {
 	friend class ScriptObject;

@@ -1,0 +1,24 @@
+version: '3.8'
+
+name: openttd-default
+
+services:
+  openttd:
+    build:
+      context: .
+      target: runtime
+      dockerfile: Dockerfile
+    ports:
+      # Game server port
+      - "3979:3979/tcp"
+      - "3979:3979/udp"
+      # Admin port
+      - "3977:3977/tcp"
+    environment:
+      - OTTD_USE_RPC_PLUGIN=/build/contrib/libottd_rpc_example/build-debug/libottd_rpc_example.so
+    volumes:
+      - ./contrib/content/scenario/example.scn:/root/.local/share/openttd/content_download/scenario/example.scn
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+

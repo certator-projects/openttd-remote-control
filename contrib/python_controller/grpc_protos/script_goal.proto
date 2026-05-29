@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package openttd;
+
+enum GoalType {
+  GT_NONE = 0;
+  GT_TILE = 1;
+  GT_INDUSTRY = 2;
+  GT_TOWN = 3;
+  GT_COMPANY = 4;
+  GT_STORY_PAGE = 5;
+}
+
+service ScriptGoal {
+  rpc New(NewGoalRequest) returns (NewGoalReply) {}
+}
+
+message NewGoalRequest {
+  int32 company = 1;
+  string goal_text = 2;
+  GoalType goal_type = 3;
+  int64 destination = 4;
+  bool goal_global = 5;
+}
+
+message NewGoalReply {
+  uint32 goal_id = 1;
+}
