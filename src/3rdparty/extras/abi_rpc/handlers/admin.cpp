@@ -15,6 +15,7 @@
 #include "../../../network/network.h"
 #include "../../../network/network_base.h"
 #include "../../../network/network_func.h"
+#include "../../../network/core/network_game_info.h"
 #include "../../../settings_type.h"
 #include "../../../saveload/saveload.h"
 #include "../../../fios.h"
@@ -119,6 +120,12 @@ void HandleStartNetworkServer(const openttd::StartNetworkServerRequest &request,
 
 	// Set flag to prevent LoadFromConfig() from overwriting these settings
 	_rpc_settings_override = true;
+
+	std::optional<std::string> advertised_script_name;
+	std::optional<int> advertised_script_version;
+	if (request.has_script_name()) advertised_script_name = request.script_name();
+	if (request.has_script_version()) advertised_script_version = (int)request.script_version();
+	SetNetworkGameScriptAdvertisedInfo(advertised_script_name, advertised_script_version);
 
 	// Set network server configuration
 	_settings_client.network.server_name = request.server_name();

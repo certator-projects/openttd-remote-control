@@ -142,6 +142,8 @@ async def _ensure_network_server(
             visibility_type=cfg.visibility_type,
             server_password="",
             scenario_path=cfg.scenario_path,
+            script_name="Company Value Goal",
+            script_version=101,
         )
     )
 

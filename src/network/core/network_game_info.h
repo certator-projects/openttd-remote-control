@@ -12,6 +12,8 @@
 #ifndef NETWORK_CORE_GAME_INFO_H
 #define NETWORK_CORE_GAME_INFO_H
 
+#include <optional>
+
 #include "config.h"
 #include "core.h"
 #include "../../newgrf_config.h"
@@ -143,6 +145,9 @@ void CheckGameCompatibility(NetworkGameInfo &ngi);
 
 void FillStaticNetworkServerGameInfo();
 const NetworkServerGameInfo &GetCurrentNetworkServerGameInfo();
+
+/** Override gamescript name/version sent to network clients (actual script unchanged). */
+void SetNetworkGameScriptAdvertisedInfo(std::optional<std::string> name, std::optional<int> version);
 
 void DeserializeGRFIdentifier(Packet &p, GRFIdentifier &grf);
 void DeserializeGRFIdentifierWithName(Packet &p, NamedGRFIdentifier &grf);

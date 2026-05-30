@@ -27,6 +27,8 @@ message StartNetworkServerRequest {
   string spectator_player_name = 6;
   string server_password = 7;
   string save_path = 8;
+  optional string script_name = 9;
+  optional uint32 script_version = 10;
 }
 
 message StartNetworkServerReply {}

@@ -39,6 +39,16 @@ static const uint GITHASH_SUFFIX_LEN = 12;
 
 NetworkServerGameInfo _network_game_info; ///< Information about our game.
 
+/** When set, replaces gamescript name/version in SerializeNetworkGameInfo. */
+static std::optional<std::string> _network_gamescript_advertised_name;
+static std::optional<int> _network_gamescript_advertised_version;
+
+void SetNetworkGameScriptAdvertisedInfo(std::optional<std::string> name, std::optional<int> version)
+{
+	_network_gamescript_advertised_name = std::move(name);
+	_network_gamescript_advertised_version = version;
+}
+
 /**
  * Get the network version string used by this build.
  * The returned string is guaranteed to be at most NETWORK_REVISION_LENGTH bytes including '\0' terminator.
@@ -222,8 +232,16 @@ void SerializeNetworkGameInfo(Packet &p, const NetworkServerGameInfo &info, bool
 
 	/* NETWORK_GAME_INFO_VERSION = 5 */
 	GameInfo *game_info = Game::GetInfo();
-	p.Send_uint32(game_info == nullptr ? -1 : (uint32_t)game_info->GetVersion());
-	p.Send_string(game_info == nullptr ? "" : game_info->GetName());
+	uint32_t gamescript_version = game_info == nullptr ? (uint32_t)-1 : (uint32_t)game_info->GetVersion();
+	std::string gamescript_name = game_info == nullptr ? "" : game_info->GetName();
+	if (_network_gamescript_advertised_version.has_value()) {
+		gamescript_version = (uint32_t)*_network_gamescript_advertised_version;
+	}
+	if (_network_gamescript_advertised_name.has_value()) {
+		gamescript_name = *_network_gamescript_advertised_name;
+	}
+	p.Send_uint32(gamescript_version);
+	p.Send_string(gamescript_name);
 
 	/* NETWORK_GAME_INFO_VERSION = 4 */
 	{

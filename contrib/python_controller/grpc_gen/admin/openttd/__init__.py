@@ -94,6 +94,8 @@ class StartNetworkServerRequest(betterproto.Message):
     spectator_player_name: str = betterproto.string_field(6)
     server_password: str = betterproto.string_field(7)
     save_path: str = betterproto.string_field(8)
+    script_name: str | None = betterproto.string_field(9, optional=True)
+    script_version: int | None = betterproto.uint32_field(10, optional=True)
 
 
 @dataclass(eq=False, repr=False)
