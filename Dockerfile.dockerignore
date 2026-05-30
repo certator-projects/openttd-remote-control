@@ -2,7 +2,9 @@
 *
 
 # Include essential source and build files
-!contrib/
+!contrib/libottd_rpc_example
+!contrib/libottd_uds_bridge
+!contrib/ottd_uds_ipc
 !src/
 !CMakeLists.txt
 !cmake/
@@ -43,10 +45,6 @@ build-*/
 contrib/*/build/
 contrib/*/build-*/
 
-# Those are built in separate contexts
-contrib/grpc_server/*
-contrib/python_controller/*
-
 # Exclude specs and nested README copies (keep root docs for cmake install)
 **/spec*.md
 **/README*.md
@@ -54,13 +52,8 @@ contrib/python_controller/*
 !changelog.md
 !known-bugs.md
 
-# Exclude docker artifacts
-**/Dockerfile*
-**/*dockerignore*
-
 # Exclude development artifacts
 **/.git/
-**/.pixi/
 **/.vscode/
 **/.vs/
 **/.idea/

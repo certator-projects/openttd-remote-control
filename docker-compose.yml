@@ -1,5 +1,3 @@
-version: '3.8'
-
 name: openttd-default
 
 services:
@@ -7,7 +5,12 @@ services:
     build:
       context: .
       target: runtime
-      dockerfile: Dockerfile
+      dockerfile: ${OPENTTD_DOCKERFILE:-Dockerfile}
+      additional_contexts:
+        utils: contrib/utils
+      args:
+        # version;isodate;modified;hash;istag;isstabletag — see README / FindVersion.cmake
+        OTTD_REV_OVERRIDE: ${OTTD_REV_OVERRIDE:-15.3;20260404;0;14ec60f248547d4d062a1160f0fc26d742319888;1;1}
     ports:
       # Game server port
       - "3979:3979/tcp"
@@ -15,7 +18,7 @@ services:
       # Admin port
       - "3977:3977/tcp"
     environment:
-      - OTTD_USE_RPC_PLUGIN=/build/contrib/libottd_uds_bridge/build-debug/libottd_uds_bridge.so
+      - OTTD_USE_RPC_PLUGIN=${OTTD_RPC_PLUGIN:-/opt/openttd/lib/libottd_uds_bridge.so}
       - OTTD_UDS_BRIDGE_ENABLED=1
       - OTTD_UDS_SOCKET_PATH=/run/openttd/rpc.sock
     volumes:
@@ -27,8 +30,11 @@ services:
 
   grpc-server:
     build:
-      context: .
-      dockerfile: contrib/grpc_server/Dockerfile
+      context: contrib/grpc_server
+      dockerfile: Dockerfile
+      target: runtime
+      additional_contexts:
+        root-context: .
     depends_on:
       - openttd
     ports:

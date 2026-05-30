@@ -1,0 +1,14 @@
+# Exclude everything by default
+*
+
+# pixi env (primary context root; copied to /build in pixi_base)
+!pixi.toml
+!pixi.lock
+
+# grpc_server sources (copied to /build/contrib/grpc_server in builder)
+!CMakeLists.txt
+!wait_for_uds.sh
+!proto/
+!proto/**
+!*.cpp
+!*.h

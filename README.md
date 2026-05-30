@@ -51,6 +51,7 @@ The default configuration is designed to remain GPLv2-compatible and does **not*
 .
 ├── docker-compose.yml              # OpenTTD + UDS bridge + grpc-server + python-controller
 ├── Dockerfile                      # OpenTTD image (GPLv2-compatible deps)
+├── Dockerfile.cached               # Optimised rebuilds (BuildKit cache mounts + slimmer runtime)
 ├── contrib/
 │   ├── content/scenario/           # example scenario files (.scn)
 │   ├── grpc_server/                # standalone gRPC executable (+ pixi env for Docker build)
@@ -161,13 +162,13 @@ For reproducible **release** builds without a `.git` directory (for example Dock
 
 `version;isodate;modified;hash;istag;isstabletag`
 
-Example (matches the pinned Docker build):
+Example (matches the pinned Docker Compose build):
 
 ```bash
 cmake .. -DOTTD_REV_OVERRIDE=15.3;20260404;0;14ec60f248547d4d062a1160f0fc26d742319888;1;1
 ```
 
-[Dockerfile](/Dockerfile) passes this flag when building the OpenTTD image. A checked-in `.ottdrev` is still supported when neither git nor `OTTD_REV_OVERRIDE` is available.
+[`docker-compose.yml`](/docker-compose.yml) passes `OTTD_REV_OVERRIDE` as a build arg to the OpenTTD image (override via env when building). A checked-in `.ottdrev` is still supported when neither git nor `OTTD_REV_OVERRIDE` is available.
 
 ---
 
@@ -177,7 +178,7 @@ The default [`docker-compose.yml`](/docker-compose.yml) builds and runs:
 
 | Service | Image / build | Role |
 | ------- | ------------- | ---- |
-| `openttd` | [Dockerfile](/Dockerfile) | Dedicated server + `libottd_uds_bridge` (GPLv2-compatible pixi deps) |
+| `openttd` | [Dockerfile](/Dockerfile) or [Dockerfile.cached](/Dockerfile.cached) | Dedicated server + `libottd_uds_bridge` (GPLv2-compatible pixi deps) |
 | `grpc-server` | [contrib/grpc_server/Dockerfile](/contrib/grpc_server/Dockerfile) | `ottd_grpc_server` (gRPC + Apache-2.0 stack, separate container) |
 | `python-controller` | [contrib/python_controller/Dockerfile](/contrib/python_controller/Dockerfile) | Example gRPC client |
 
@@ -188,6 +189,23 @@ Start the stack:
 ```bash
 docker compose up --build
 ```
+
+### Optimised cached build (development)
+
+For faster **incremental** rebuilds while iterating on source, use [`Dockerfile.cached`](/Dockerfile.cached) instead of the default [`Dockerfile`](/Dockerfile). It requires [Docker BuildKit](https://docs.docker.com/build/buildkit/) (enabled by default in current Docker Desktop and recent `docker compose`).
+
+```bash
+OPENTTD_DOCKERFILE=Dockerfile.cached docker compose up --build
+```
+
+What it does differently:
+
+* **BuildKit cache mounts** — CMake build directories for OpenTTD, host tools, and contrib plugins are restored and updated across builds via [`contrib/utils/cache_build_util.sh`](/contrib/utils/cache_build_util.sh), so changed translation units recompile instead of rebuilding from scratch.
+* **ccache** — compiler object cache is reused within each build stage.
+* **Slimmer runtime image** — both Dockerfiles use a multi-stage build: the final stage keeps only `/opt/openttd`, basesets, the UDS bridge plugin under `/opt/openttd/lib/`, and the pixi env (`pixi.toml` / `pixi.lock` in `/build` for `pixi run`).
+* **Smaller build context** — [`Dockerfile.cached.dockerignore`](/Dockerfile.cached.dockerignore) sends only sources needed to compile (BuildKit picks it up automatically when `-f Dockerfile.cached` is used).
+
+The first cached build is similar in time to the default Dockerfile; savings appear on subsequent `docker compose up --build` runs after local edits. [`docker-compose.yml`](/docker-compose.yml) selects the Dockerfile via `OPENTTD_DOCKERFILE` (default `Dockerfile`); plugin path defaults to `/opt/openttd/lib/libottd_uds_bridge.so` for both variants.
 
 The OpenTTD image does **not** link gRPC. Apache-2.0 dependencies exist only in the `grpc-server` container.
 
