@@ -167,6 +167,9 @@ void RPCHandler_Initialize()
 
 	// ScriptGoal methods
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_NEW, openttd::NewGoalRequest, openttd::NewGoalReply, HandleScriptGoal_New);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_QUESTION, openttd::QuestionRequest, openttd::QuestionReply, HandleScriptGoal_Question);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_QUESTION_CLIENT, openttd::QuestionClientRequest, openttd::QuestionClientReply, HandleScriptGoal_QuestionClient);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_CLOSE_QUESTION, openttd::CloseQuestionRequest, openttd::CloseQuestionReply, HandleScriptGoal_CloseQuestion);
 
 	// ScriptMap methods
 	REGISTER_RPC_HANDLER(RPC_SCRIPTMAP_GET_MAP_SIZE_X, openttd::GetMapSizeXRequest, openttd::GetMapSizeXReply, HandleScriptMap_GetMapSizeX);

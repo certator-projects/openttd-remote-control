@@ -36,6 +36,21 @@ class GoalType(betterproto.Enum):
         return core_schema.int_schema(ge=0)
 
 
+class GoalQuestionType(betterproto.Enum):
+    """Matches ScriptGoal::QuestionType / GoalQuestionType in OpenTTD."""
+
+    GQT_QUESTION = 0
+    GQT_INFORMATION = 1
+    GQT_WARNING = 2
+    GQT_ERROR = 3
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
+        from pydantic_core import core_schema
+
+        return core_schema.int_schema(ge=0)
+
+
 @dataclass(eq=False, repr=False)
 class NewGoalRequest(betterproto.Message):
     company: int = betterproto.int32_field(1)
@@ -48,6 +63,56 @@ class NewGoalRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NewGoalReply(betterproto.Message):
     goal_id: int = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class QuestionRequest(betterproto.Message):
+    """
+    Ask a question of all players in a company (or all companies when goal_global is true).
+    """
+
+    unique_id: int = betterproto.uint32_field(1)
+    company: int = betterproto.int32_field(2)
+    goal_global: bool = betterproto.bool_field(3)
+    question: str = betterproto.string_field(4)
+    type: "GoalQuestionType" = betterproto.enum_field(5)
+    buttons: int = betterproto.uint32_field(6)
+    """
+    Bitmask of ScriptGoal::QuestionButton values (e.g. BUTTON_START = 2048).
+    """
+
+
+@dataclass(eq=False, repr=False)
+class QuestionReply(betterproto.Message):
+    success: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class QuestionClientRequest(betterproto.Message):
+    """Ask a question of a single connected client."""
+
+    unique_id: int = betterproto.uint32_field(1)
+    client_id: int = betterproto.uint32_field(2)
+    question: str = betterproto.string_field(3)
+    type: "GoalQuestionType" = betterproto.enum_field(4)
+    buttons: int = betterproto.uint32_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class QuestionClientReply(betterproto.Message):
+    success: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CloseQuestionRequest(betterproto.Message):
+    """Close a previously shown question on all clients."""
+
+    unique_id: int = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CloseQuestionReply(betterproto.Message):
+    success: bool = betterproto.bool_field(1)
 
 
 class ScriptGoalStub(betterproto.ServiceStub):
@@ -68,9 +133,73 @@ class ScriptGoalStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def question(
+        self,
+        question_request: "QuestionRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "QuestionReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/Question",
+            question_request,
+            QuestionReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def question_client(
+        self,
+        question_client_request: "QuestionClientRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "QuestionClientReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/QuestionClient",
+            question_client_request,
+            QuestionClientReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def close_question(
+        self,
+        close_question_request: "CloseQuestionRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "CloseQuestionReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/CloseQuestion",
+            close_question_request,
+            CloseQuestionReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
 
 class ScriptGoalBase(ServiceBase):
     async def new(self, new_goal_request: "NewGoalRequest") -> "NewGoalReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def question(self, question_request: "QuestionRequest") -> "QuestionReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def question_client(
+        self, question_client_request: "QuestionClientRequest"
+    ) -> "QuestionClientReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def close_question(
+        self, close_question_request: "CloseQuestionRequest"
+    ) -> "CloseQuestionReply":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_new(
@@ -78,6 +207,28 @@ class ScriptGoalBase(ServiceBase):
     ) -> None:
         request = await stream.recv_message()
         response = await self.new(request)
+        await stream.send_message(response)
+
+    async def __rpc_question(
+        self, stream: "grpclib.server.Stream[QuestionRequest, QuestionReply]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.question(request)
+        await stream.send_message(response)
+
+    async def __rpc_question_client(
+        self,
+        stream: "grpclib.server.Stream[QuestionClientRequest, QuestionClientReply]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.question_client(request)
+        await stream.send_message(response)
+
+    async def __rpc_close_question(
+        self, stream: "grpclib.server.Stream[CloseQuestionRequest, CloseQuestionReply]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.close_question(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> dict[str, grpclib.const.Handler]:
@@ -88,7 +239,27 @@ class ScriptGoalBase(ServiceBase):
                 NewGoalRequest,
                 NewGoalReply,
             ),
+            "/openttd.ScriptGoal/Question": grpclib.const.Handler(
+                self.__rpc_question,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                QuestionRequest,
+                QuestionReply,
+            ),
+            "/openttd.ScriptGoal/QuestionClient": grpclib.const.Handler(
+                self.__rpc_question_client,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                QuestionClientRequest,
+                QuestionClientReply,
+            ),
+            "/openttd.ScriptGoal/CloseQuestion": grpclib.const.Handler(
+                self.__rpc_close_question,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CloseQuestionRequest,
+                CloseQuestionReply,
+            ),
         }
 
 
 rebuild_dataclass(NewGoalRequest)  # type: ignore
+rebuild_dataclass(QuestionRequest)  # type: ignore
+rebuild_dataclass(QuestionClientRequest)  # type: ignore

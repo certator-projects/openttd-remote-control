@@ -38,6 +38,9 @@ POST_WIN_RESTART_DELAY_S = 60.0
 
 SPECTATOR_PLAYER_NAME = "controller"
 
+# ScriptGoal::BUTTON_START (1 << 11)
+GOAL_QUESTION_BUTTON_START = 2048
+
 
 def _win_value_compact(*, value: int = WIN_VALUE) -> str:
     """Short label for goals (e.g. 10M, 1.5M); falls back to comma-separated."""
@@ -238,9 +241,19 @@ async def _load_or_create_storage(container: AsyncContainer) -> Storage:
     return storage
 
 
+def _greeting_message(client_name: str) -> str:
+    return (
+        f"Welcome, {client_name}!\n\n"
+        f"Goal: create or join a company, grow it, and reach {WIN_VALUE:,} company value.\n"
+        "You can start as spectator, create a company, or join an existing one. "
+        f"First company to reach {WIN_VALUE:,} wins."
+    )
+
+
 async def _greet_and_instruct_new_clients(
     *,
     admin_service: admin.AdminStub,
+    goal_service: script_goal.ScriptGoalStub,
     storage: Storage,
     clients: list[admin.NetworkClient],
 ) -> None:
@@ -256,29 +269,50 @@ async def _greet_and_instruct_new_clients(
             seen_at=now,
         )
 
-        if client.client_id not in known and not state.greeted:
-            logger.info("Greeting client %s", client.client_name)
-            await admin_service.send_chat_message(
-                admin.SendChatMessageRequest(
-                    message=f"Welcome {client.client_name}! Type /help for OpenTTD help."
-                )
-            )
-            await storage.mark_greeted(client.client_id)
+        if state.instructions_sent:
+            continue
 
-        # Send instructions once, after a short delay, to avoid racing the join.
-        if not state.instructions_sent:
+        # First sighting: wait briefly so the client finishes joining before the popup.
+        if client.client_id not in known:
             await asyncio.sleep(1.5)
-            await admin_service.send_private_chat_message(
-                admin.SendPrivateChatMessageRequest(
-                    client_id=client.client_id,
-                    message=(
-                        f"Goal: create or join a company, grow it, and reach {WIN_VALUE:,} company value.\n"
-                        "You can start as spectator, create a company, or join an existing one. "
-                        f"First company to reach {WIN_VALUE:,} wins."
-                    ),
-                )
+
+        question = _greeting_message(client.client_name)
+        reply = await goal_service.question_client(
+            script_goal.QuestionClientRequest(
+                unique_id=client.client_id,
+                client_id=client.client_id,
+                question=question,
+                type=cast(
+                    script_goal.GoalQuestionType,
+                    script_goal.GoalQuestionType.GQT_WARNING,
+                ),
+                buttons=GOAL_QUESTION_BUTTON_START,
             )
+        )
+
+        if reply.success:
+            logger.info("Greeted client %s via goal question", client.client_name)
+            await storage.mark_greeted(client.client_id)
             await storage.mark_instructions_sent(client.client_id)
+            continue
+
+        logger.warning(
+            "Goal question greeting failed for client %s; falling back to chat",
+            client.client_name,
+        )
+        await admin_service.send_chat_message(
+            admin.SendChatMessageRequest(
+                message=f"Welcome {client.client_name}! Type /help for OpenTTD help."
+            )
+        )
+        await admin_service.send_private_chat_message(
+            admin.SendPrivateChatMessageRequest(
+                client_id=client.client_id,
+                message=question,
+            )
+        )
+        await storage.mark_greeted(client.client_id)
+        await storage.mark_instructions_sent(client.client_id)
 
 
 async def _update_company_values(
@@ -440,6 +474,7 @@ async def run_controller(
         await _ensure_global_goal(container, storage)
 
         company_service = await container.get(script_company.ScriptCompanyStub)
+        goal_service = await container.get(script_goal.ScriptGoalStub)
 
         last_scoreboard_at = 0.0
         while True:
@@ -462,6 +497,7 @@ async def run_controller(
                 ]
                 await _greet_and_instruct_new_clients(
                     admin_service=admin_service,
+                    goal_service=goal_service,
                     storage=storage,
                     clients=list(network.clients),
                 )

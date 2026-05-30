@@ -82,6 +82,9 @@ void RegisterGRPCHandlers(grpc::ServerBuilder &builder, std::unique_ptr<grpc::Se
 
 	// ScriptGoal
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, NewGoalRequest, NewGoalReply, RPC_SCRIPTGOAL_NEW, New);
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, QuestionRequest, QuestionReply, RPC_SCRIPTGOAL_QUESTION, Question);
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, QuestionClientRequest, QuestionClientReply, RPC_SCRIPTGOAL_QUESTION_CLIENT, QuestionClient);
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, CloseQuestionRequest, CloseQuestionReply, RPC_SCRIPTGOAL_CLOSE_QUESTION, CloseQuestion);
 
 	// ScriptMap
 	REGISTER_GRPC_HANDLER(g_script_map_service, ScriptMap, GetMapSizeXRequest, GetMapSizeXReply, RPC_SCRIPTMAP_GET_MAP_SIZE_X, GetMapSizeX);

@@ -13,8 +13,18 @@
 #include "../../../script/api/script_goal.hpp"
 #include "../../../script/api/script_text.hpp"
 #include "../../../script/api/script_company.hpp"
+#include "../../../script/api/script_client.hpp"
 #include "../../../script/script_suspend.hpp"
 #include "../../../game/game.hpp"
+
+static void SetGameScriptUnavailable(openttd::GenericError *error)
+{
+	if (error != nullptr)
+	{
+		error->set_error_code(openttd::ERROR_INTERNAL);
+		error->set_error_summary("Game script instance not available");
+	}
+}
 
 void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::NewGoalReply &response, openttd::GenericError *error)
 {
@@ -46,4 +56,70 @@ void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::NewGo
 	}
 
 	response.set_goal_id(goal_id.base());
+}
+
+void HandleScriptGoal_Question(const openttd::QuestionRequest &request, openttd::QuestionReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_success(false);
+		return;
+	}
+
+	::ScriptCompany::CompanyID company = request.goal_global()
+											 ? ::ScriptCompany::COMPANY_INVALID
+											 : static_cast<::ScriptCompany::CompanyID>(request.company());
+
+	bool success = ExecuteScriptCommand([&]()
+										{
+		RawText *text = new RawText(request.question());
+		return ::ScriptGoal::Question(
+			static_cast<SQInteger>(request.unique_id()),
+			company,
+			text,
+			static_cast<::ScriptGoal::QuestionType>(request.type()),
+			static_cast<SQInteger>(request.buttons())); });
+
+	response.set_success(success);
+}
+
+void HandleScriptGoal_QuestionClient(const openttd::QuestionClientRequest &request, openttd::QuestionClientReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_success(false);
+		return;
+	}
+
+	bool success = ExecuteScriptCommand([&]()
+										{
+		RawText *text = new RawText(request.question());
+		return ::ScriptGoal::QuestionClient(
+			static_cast<SQInteger>(request.unique_id()),
+			static_cast<::ScriptClient::ClientID>(request.client_id()),
+			text,
+			static_cast<::ScriptGoal::QuestionType>(request.type()),
+			static_cast<SQInteger>(request.buttons())); });
+
+	response.set_success(success);
+}
+
+void HandleScriptGoal_CloseQuestion(const openttd::CloseQuestionRequest &request, openttd::CloseQuestionReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_success(false);
+		return;
+	}
+
+	bool success = ExecuteScriptCommand([&]()
+										{ return ::ScriptGoal::CloseQuestion(static_cast<SQInteger>(request.unique_id())); });
+
+	response.set_success(success);
 }
