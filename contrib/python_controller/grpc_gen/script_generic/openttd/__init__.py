@@ -10,14 +10,7 @@ if TYPE_CHECKING:
 else:
     from pydantic.dataclasses import dataclass
 
-from typing import (
-    Dict,
-    Optional,
-)
-
 import betterproto
-import grpclib
-from betterproto.grpc.grpclib_server import ServiceBase
 from pydantic.dataclasses import rebuild_dataclass
 
 
@@ -56,67 +49,6 @@ class GenericError(betterproto.Message):
 
     error_code: "ErrorCode" = betterproto.enum_field(1)
     error_summary: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class GetLastIntResultRequest(betterproto.Message):
-    """
-    GetLastIntResult - retrieves the last integer result from script operations
-    """
-
-
-@dataclass(eq=False, repr=False)
-class GetLastIntResultReply(betterproto.Message):
-    result: int = betterproto.int32_field(1)
-    """
-    The last integer result from a script operation.
-     This could be a GoalID, SignID, VehicleID, or any other ID type
-     that was returned via Squirrel::InsertResult(int).
-    """
-
-
-class ScriptGenericStub(betterproto.ServiceStub):
-    async def get_last_int_result(
-        self,
-        get_last_int_result_request: "GetLastIntResultRequest",
-        *,
-        timeout: float | None = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "GetLastIntResultReply":
-        return await self._unary_unary(
-            "/openttd.ScriptGeneric/GetLastIntResult",
-            get_last_int_result_request,
-            GetLastIntResultReply,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-
-class ScriptGenericBase(ServiceBase):
-    async def get_last_int_result(
-        self, get_last_int_result_request: "GetLastIntResultRequest"
-    ) -> "GetLastIntResultReply":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_get_last_int_result(
-        self,
-        stream: "grpclib.server.Stream[GetLastIntResultRequest, GetLastIntResultReply]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.get_last_int_result(request)
-        await stream.send_message(response)
-
-    def __mapping__(self) -> dict[str, grpclib.const.Handler]:
-        return {
-            "/openttd.ScriptGeneric/GetLastIntResult": grpclib.const.Handler(
-                self.__rpc_get_last_int_result,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                GetLastIntResultRequest,
-                GetLastIntResultReply,
-            ),
-        }
 
 
 rebuild_dataclass(GenericError)  # type: ignore

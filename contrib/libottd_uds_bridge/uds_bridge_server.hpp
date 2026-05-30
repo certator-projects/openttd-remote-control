@@ -17,10 +17,10 @@ public:
 
 	bool Start(const std::string &socket_path);
 	void Shutdown();
-	int32_t Poll(RPCHandler handler, HostOps &host_ops);
+	int32_t Poll(HostOps &host_ops);
 
 private:
-	bool ProcessClient(boost::asio::local::stream_protocol::socket &client, RPCHandler handler, HostOps &host_ops);
+	bool ProcessClient(boost::asio::local::stream_protocol::socket &client, HostOps &host_ops);
 
 	boost::asio::io_context io_context_;
 	std::unique_ptr<boost::asio::local::stream_protocol::acceptor> acceptor_;

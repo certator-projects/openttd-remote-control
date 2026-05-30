@@ -93,9 +93,9 @@ void UdsBridgeServer::Shutdown()
 	socket_path_.clear();
 }
 
-int32_t UdsBridgeServer::Poll(RPCHandler handler, HostOps &host_ops)
+int32_t UdsBridgeServer::Poll(HostOps &host_ops)
 {
-	if (acceptor_ == nullptr || handler == nullptr)
+	if (acceptor_ == nullptr || host_ops.handle_rpc == nullptr)
 	{
 		return 0;
 	}
@@ -119,7 +119,7 @@ int32_t UdsBridgeServer::Poll(RPCHandler handler, HostOps &host_ops)
 			break;
 		}
 
-		if (ProcessClient(client, handler, host_ops))
+		if (ProcessClient(client, host_ops))
 		{
 			processed++;
 		}
@@ -128,8 +128,7 @@ int32_t UdsBridgeServer::Poll(RPCHandler handler, HostOps &host_ops)
 	return processed;
 }
 
-bool UdsBridgeServer::ProcessClient(boost::asio::local::stream_protocol::socket &client, RPCHandler handler,
-									HostOps &host_ops)
+bool UdsBridgeServer::ProcessClient(boost::asio::local::stream_protocol::socket &client, HostOps &host_ops)
 {
 	int32_t method_id = 0;
 	std::vector<uint8_t> request;
@@ -169,8 +168,8 @@ bool UdsBridgeServer::ProcessClient(boost::asio::local::stream_protocol::socket 
 	void *error_buffer = nullptr;
 	size_t error_size = 0;
 
-	int32_t status = handler(mem_mgr, method_id, request_buffer, request.size(),
-							 &response_buffer, &response_size, &error_buffer, &error_size);
+	int32_t status = host_ops.handle_rpc(mem_mgr, method_id, request_buffer, request.size(),
+										 &response_buffer, &response_size, &error_buffer, &error_size);
 
 	ottd::ipc::RpcResponse rpc_response{};
 	rpc_response.status = status;

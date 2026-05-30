@@ -35,6 +35,14 @@ set(PROTO_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_company.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_generic.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_goal.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_map.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/abi_internal.proto)
+
+set(PUBLIC_GRPC_PROTO_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/console.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/admin.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_company.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_goal.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_map.proto)
 
 get_target_property(PROTOC_EXECUTABLE protobuf::protoc IMPORTED_LOCATION)
@@ -61,7 +69,8 @@ foreach(proto_file ${PROTO_FILES})
   list(APPEND PROTO_SRCS "${PROTO_OUT_DIR}/${PROTO_NAME}.pb.cc")
   list(APPEND PROTO_HDRS "${PROTO_OUT_DIR}/${PROTO_NAME}.pb.h")
 
-  if(PROTO_NAME MATCHES "^(admin|console|script_.*)")
+  if(PROTO_NAME MATCHES
+     "^(admin|console|script_company|script_goal|script_map)$")
     list(APPEND GRPC_SRCS "${PROTO_OUT_DIR}/${PROTO_NAME}.grpc.pb.cc")
     list(APPEND GRPC_HDRS "${PROTO_OUT_DIR}/${PROTO_NAME}.grpc.pb.h")
   endif()
@@ -80,13 +89,7 @@ add_custom_command(
   COMMAND
     ${PROTOC_EXECUTABLE} --grpc_out=${PROTO_OUT_DIR}
     --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} -I
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto/console.proto
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto/admin.proto
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_company.proto
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_generic.proto
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_goal.proto
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto/script_map.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/proto ${PUBLIC_GRPC_PROTO_FILES}
   DEPENDS ${PROTO_FILES} protobuf::protoc
   COMMENT "Generating gRPC C++ sources"
   VERBATIM)
@@ -96,7 +99,8 @@ target_include_directories(ottd_grpc_server_proto
                            PUBLIC ${PROTO_OUT_DIR} ${Protobuf_INCLUDE_DIRS})
 ottd_target_link_protobuf_lite(ottd_grpc_server_proto PUBLIC)
 
-add_executable(ottd_grpc_server main.cpp grpc_server_services.cpp)
+add_executable(ottd_grpc_server main.cpp grpc_server_services.cpp
+                                pending_deferred_calls.cpp)
 
 target_include_directories(ottd_grpc_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(

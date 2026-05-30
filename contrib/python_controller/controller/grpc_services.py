@@ -2,7 +2,6 @@ from collections.abc import AsyncIterable
 
 import grpc_gen.admin.openttd as admin
 import grpc_gen.script_company.openttd as script_company
-import grpc_gen.script_generic.openttd as script_generic
 import grpc_gen.script_goal.openttd as script_goal
 import grpc_gen.script_map.openttd as script_map
 from dishka import Provider, Scope, provide
@@ -47,12 +46,6 @@ class AppProvider(Provider):
         self, grpc_channel: Channel
     ) -> AsyncIterable[script_goal.ScriptGoalStub]:
         yield script_goal.ScriptGoalStub(grpc_channel)
-
-    @provide(scope=Scope.APP)
-    async def generic_service(
-        self, grpc_channel: Channel
-    ) -> AsyncIterable[script_generic.ScriptGenericStub]:
-        yield script_generic.ScriptGenericStub(grpc_channel)
 
     @provide(scope=Scope.APP)
     async def console_service(

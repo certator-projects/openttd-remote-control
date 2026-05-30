@@ -5,28 +5,14 @@
  * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/** @file last_int_result.cpp Implementation of script result value capture. */
+/** @file handlers/abi_internal.h Internal ABI-RPC handlers (plugin wire only) */
 
-#include "last_int_result.h"
+#ifndef HANDLERS_ABI_INTERNAL_H
+#define HANDLERS_ABI_INTERNAL_H
 
-/**
- * Static storage for the last integer result from script operations.
- * This is used to capture values like GoalID that are returned asynchronously
- * via DoCommandReturn* callbacks and Squirrel::InsertResult.
- */
-static int32_t g_last_int_result = 0;
+#include "abi_rpc/abi_internal.pb.h"
+#include "abi_rpc/script_generic.pb.h"
 
-void SetLastIntResult(int32_t result)
-{
-	g_last_int_result = result;
-}
+void HandleAbiInternal_PollDeferredResult(const openttd::PollDeferredResultRequest &request, openttd::PollDeferredResultReply &response, openttd::GenericError *error);
 
-int32_t GetLastIntResult()
-{
-	return g_last_int_result;
-}
-
-void ClearLastIntResult()
-{
-	g_last_int_result = 0;
-}
+#endif /* HANDLERS_ABI_INTERNAL_H */

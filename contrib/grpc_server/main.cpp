@@ -11,7 +11,7 @@
 #include <grpcpp/health_check_service_interface.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
-#include <spdlog/spdlog.h>
+#include "pending_deferred_calls.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -91,6 +91,7 @@ static void RunCompletionQueueLoop()
 
 		if (status == grpc::ServerCompletionQueue::TIMEOUT)
 		{
+			PollPendingDeferredGrpcCalls();
 			continue;
 		}
 

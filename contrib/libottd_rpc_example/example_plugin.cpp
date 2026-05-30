@@ -44,7 +44,8 @@ static bool HostOpsReady()
 		   g_host_ops.memory.allocate != nullptr &&
 		   g_host_ops.memory.deallocate != nullptr &&
 		   g_host_ops.memory.release_all != nullptr &&
-		   g_host_ops.memory.destroy != nullptr;
+		   g_host_ops.memory.destroy != nullptr &&
+		   g_host_ops.handle_rpc != nullptr;
 }
 
 // Plugin interface implementation
@@ -105,9 +106,9 @@ extern "C" int32_t StartRPCServer()
 	return PLUGIN_SUCCESS;
 }
 
-extern "C" int32_t HandleRPCCalls(RPCHandler handler)
+extern "C" int32_t HandleRPCCalls()
 {
-	if (!HostOpsReady() || handler == nullptr)
+	if (!HostOpsReady())
 	{
 		g_last_plugin_error = PLUGIN_ERROR_NULL_PARAMETER;
 		return -1;
@@ -145,8 +146,8 @@ extern "C" int32_t HandleRPCCalls(RPCHandler handler)
 			size_t response_size = 0;
 			void *error_buffer = nullptr;
 			size_t error_size = 0;
-			result = handler(mem_mgr, RPC_GET_MODE, request_buffer, request_size,
-							 &response_buffer, &response_size, &error_buffer, &error_size);
+			result = g_host_ops.handle_rpc(mem_mgr, RPC_GET_MODE, request_buffer, request_size,
+										   &response_buffer, &response_size, &error_buffer, &error_size);
 
 			if (result != 0)
 			{

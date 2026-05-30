@@ -9,6 +9,7 @@
 
 #include "script_goal.h"
 #include "../script_execution_context.h"
+#include "../script_deferred_int_result.h"
 
 #include "../../../script/api/script_goal.hpp"
 #include "../../../script/api/script_text.hpp"
@@ -26,9 +27,8 @@ static void SetGameScriptUnavailable(openttd::GenericError *error)
 	}
 }
 
-void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::NewGoalReply &response, openttd::GenericError *error)
+void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::ScriptGoalNewAbiReply &response, openttd::GenericError *error)
 {
-	(void)error;
 	ScriptExecutionContext ctx;
 	if (!ctx.IsValid())
 	{
@@ -43,6 +43,8 @@ void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::NewGo
 	::ScriptGoal::GoalType goal_type = static_cast<::ScriptGoal::GoalType>(request.goal_type());
 	SQInteger destination = static_cast<SQInteger>(request.destination());
 
+	ScriptDeferredIntResult deferred(ctx);
+
 	GoalID goal_id = ::ScriptGoal::GOAL_INVALID;
 	try
 	{
@@ -52,7 +54,35 @@ void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::NewGo
 	catch (Script_Suspend &e)
 	{
 		Game::GetInstance()->HandleScriptSuspend(e);
-		goal_id = ::ScriptGoal::GOAL_INVALID;
+		if (deferred.IsPending())
+		{
+			response.set_goal_id(0);
+			response.set_deferred_result_id(deferred.Id());
+			return;
+		}
+		response.set_goal_id(::ScriptGoal::GOAL_INVALID.base());
+		return;
+	}
+
+	int32_t resolved_value = 0;
+	if (deferred.TryGetResolvedValue(resolved_value))
+	{
+		response.set_goal_id(static_cast<uint32_t>(resolved_value));
+		return;
+	}
+
+	if (goal_id == ::ScriptGoal::GOAL_INVALID)
+	{
+		deferred.Cancel();
+		response.set_goal_id(::ScriptGoal::GOAL_INVALID.base());
+		return;
+	}
+
+	if (deferred.IsPending())
+	{
+		response.set_goal_id(0);
+		response.set_deferred_result_id(deferred.Id());
+		return;
 	}
 
 	response.set_goal_id(goal_id.base());

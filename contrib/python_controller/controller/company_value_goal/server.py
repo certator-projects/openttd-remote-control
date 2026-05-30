@@ -13,7 +13,6 @@ from typing import cast
 
 import grpc_gen.admin.openttd as admin
 import grpc_gen.script_company.openttd as script_company
-import grpc_gen.script_generic.openttd as script_generic
 import grpc_gen.script_goal.openttd as script_goal
 import grpc_gen.script_map.openttd as script_map
 from dishka import AsyncContainer, Scope, make_async_container, provide
@@ -193,7 +192,7 @@ async def _ensure_global_goal(container: AsyncContainer, storage: Storage) -> in
 
     goal_service = await container.get(script_goal.ScriptGoalStub)
     center = await _center_tile_index(container)
-    await goal_service.new(
+    goal_response = await goal_service.new(
         script_goal.NewGoalRequest(
             company=-1,
             goal_text=f"Reach {_win_value_compact()} company value",
@@ -203,12 +202,8 @@ async def _ensure_global_goal(container: AsyncContainer, storage: Storage) -> in
         )
     )
 
-    generic = await container.get(script_generic.ScriptGenericStub)
-    last_id = (
-        await generic.get_last_int_result(script_generic.GetLastIntResultRequest())
-    ).result
-    await storage.set_kv("global_goal_id", str(last_id))
-    return last_id
+    await storage.set_kv("global_goal_id", str(goal_response.goal_id))
+    return goal_response.goal_id
 
 
 async def _load_or_create_storage(container: AsyncContainer) -> Storage:

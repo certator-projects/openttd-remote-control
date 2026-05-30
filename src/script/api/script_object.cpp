@@ -64,6 +64,11 @@ ScriptObject::ActiveInstance::~ActiveInstance()
 	ScriptObject::ActiveInstance::active = this->last_active;
 }
 
+/* static */ bool ScriptObject::HasActiveInstance()
+{
+	return ScriptObject::ActiveInstance::active != nullptr;
+}
+
 ScriptObject::DisableDoCommandScope::DisableDoCommandScope()
 	: AutoRestoreBackup(GetStorage().allow_do_command, false)
 {}
@@ -84,6 +89,25 @@ ScriptObject::DisableDoCommandScope::DisableDoCommandScope()
 /* static */ uint ScriptObject::GetDoCommandDelay()
 {
 	return GetStorage().delay;
+}
+
+/* static */ void ScriptObject::SetPendingAbiDeferredId(uint32_t id)
+{
+	GetStorage().pending_abi_deferred_id = id;
+}
+
+/* static */ uint32_t ScriptObject::ConsumePendingAbiDeferredId()
+{
+	uint32_t id = GetStorage().pending_abi_deferred_id;
+	GetStorage().pending_abi_deferred_id = 0;
+	return id;
+}
+
+/* static */ void ScriptObject::ClearPendingAbiDeferredIdIf(uint32_t id)
+{
+	if (GetStorage().pending_abi_deferred_id == id) {
+		GetStorage().pending_abi_deferred_id = 0;
+	}
 }
 
 /* static */ void ScriptObject::SetDoCommandMode(ScriptModeProc *proc, ScriptObject *instance)

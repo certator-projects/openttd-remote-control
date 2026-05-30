@@ -23,6 +23,7 @@
 #include "api/script_error.hpp"
 #include "api/script_event.hpp"
 #include "api/script_log.hpp"
+#include "../3rdparty/extras/abi_rpc/deferred_result_hook.h"
 
 #include "../company_type.h"
 #include "../fileio_func.h"
@@ -827,6 +828,7 @@ bool ScriptInstance::DoCommandCallback(const CommandCost &result, const CommandD
 
 	if (result.Failed()) {
 		ScriptObject::SetLastError(ScriptError::StringToError(result.GetErrorMessage()));
+		AbiRpc_OnScriptCommandFailed();
 	} else {
 		ScriptObject::IncreaseDoCommandCosts(result.GetCost());
 		ScriptObject::SetLastCost(result.GetCost());

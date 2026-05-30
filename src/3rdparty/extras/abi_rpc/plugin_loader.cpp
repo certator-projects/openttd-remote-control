@@ -41,7 +41,7 @@ typedef int32_t (*GetAPIVersionFunc)();
 typedef const char *(*GetLastErrorFunc)(int32_t);
 typedef void (*RegisterHostOpsFunc)(const HostOps *);
 typedef int32_t (*StartRPCServerFunc)();
-typedef int32_t (*HandleRPCCallsFunc)(RPCHandler);
+typedef int32_t (*HandleRPCCallsFunc)();
 
 // Plugin state
 struct PluginState
@@ -67,6 +67,7 @@ static const HostOps k_host_ops = {
 		&ScopedMemoryManager_ReleaseAll,
 		&ScopedMemoryManager_Destroy,
 	},
+	&RPCHandler_Handle,
 };
 
 bool PluginLoader_Initialize()
@@ -166,7 +167,7 @@ void PluginLoader_HandleRPCCalls()
 		return; // No plugin loaded or not started
 	}
 
-	int32_t result = g_plugin_state.handle_rpc_calls(RPCHandler_Handle);
+	int32_t result = g_plugin_state.handle_rpc_calls();
 
 	if (result < 0)
 	{

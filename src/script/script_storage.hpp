@@ -64,6 +64,13 @@ private:
 
 	std::vector<int> callback_value; ///< The values which need to survive a callback.
 
+	/**
+	 * When non-zero, the next Squirrel::InsertResult(int) from a DoCommand callback
+	 * resolves this ABI-RPC deferred result id. At most one script instance exists per
+	 * game session, matching native one-in-flight DoCommand semantics.
+	 */
+	uint32_t pending_abi_deferred_id = 0;
+
 	RoadType road_type = INVALID_ROADTYPE; ///< The current roadtype we build.
 	RailType rail_type = INVALID_RAILTYPE; ///< The current railtype we build.
 

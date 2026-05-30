@@ -132,6 +132,26 @@ public:
 	static class ScriptInstance &GetActiveInstance();
 
 	/**
+	 * @return True when a script instance is currently active.
+	 */
+	static bool HasActiveInstance();
+
+	/**
+	 * Bind a pending ABI-RPC deferred result to the next DoCommand int callback.
+	 */
+	static void SetPendingAbiDeferredId(uint32_t id);
+
+	/**
+	 * Take the pending ABI-RPC deferred result id, if any.
+	 */
+	static uint32_t ConsumePendingAbiDeferredId();
+
+	/**
+	 * Clear the pending ABI-RPC deferred result id when it still matches \a id.
+	 */
+	static void ClearPendingAbiDeferredIdIf(uint32_t id);
+
+	/**
 	 * Get a reference of the randomizer that brings this script random values.
 	 * @param owner The owner/script to get the randomizer for. This defaults to ScriptObject::GetRootCompany()
 	 */

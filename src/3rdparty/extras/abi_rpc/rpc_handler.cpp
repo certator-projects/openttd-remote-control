@@ -20,7 +20,7 @@
 #include "handlers/script_company.h"
 #include "handlers/script_goal.h"
 #include "handlers/script_map.h"
-#include "handlers/script_generic.h"
+#include "handlers/abi_internal.h"
 
 #include <cstring>
 #include <cstdio>
@@ -166,7 +166,7 @@ void RPCHandler_Initialize()
 	REGISTER_RPC_HANDLER(RPC_SCRIPTCOMPANY_GET_QUARTERLY_COMPANY_VALUE, openttd::GetQuarterlyCompanyValueRequest, openttd::GetQuarterlyCompanyValueReply, HandleScriptCompany_GetQuarterlyCompanyValue);
 
 	// ScriptGoal methods
-	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_NEW, openttd::NewGoalRequest, openttd::NewGoalReply, HandleScriptGoal_New);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_NEW, openttd::NewGoalRequest, openttd::ScriptGoalNewAbiReply, HandleScriptGoal_New);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_QUESTION, openttd::QuestionRequest, openttd::QuestionReply, HandleScriptGoal_Question);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_QUESTION_CLIENT, openttd::QuestionClientRequest, openttd::QuestionClientReply, HandleScriptGoal_QuestionClient);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_CLOSE_QUESTION, openttd::CloseQuestionRequest, openttd::CloseQuestionReply, HandleScriptGoal_CloseQuestion);
@@ -176,8 +176,7 @@ void RPCHandler_Initialize()
 	REGISTER_RPC_HANDLER(RPC_SCRIPTMAP_GET_MAP_SIZE_Y, openttd::GetMapSizeYRequest, openttd::GetMapSizeYReply, HandleScriptMap_GetMapSizeY);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTMAP_GET_TILE_INDEX, openttd::GetTileIndexRequest, openttd::GetTileIndexReply, HandleScriptMap_GetTileIndex);
 
-	// ScriptGeneric methods
-	REGISTER_RPC_HANDLER(RPC_SCRIPTGENERIC_GET_LAST_INT_RESULT, openttd::GetLastIntResultRequest, openttd::GetLastIntResultReply, HandleScriptGeneric_GetLastIntResult);
+	REGISTER_RPC_HANDLER(RPC_ABI_INTERNAL_POLL_DEFERRED_RESULT, openttd::PollDeferredResultRequest, openttd::PollDeferredResultReply, HandleAbiInternal_PollDeferredResult);
 }
 
 // ============================================================

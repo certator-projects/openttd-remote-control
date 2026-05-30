@@ -18,9 +18,13 @@ set(PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 
 # List all proto files
 set(PROTO_FILES
-    ${PROTO_DIR}/console.proto ${PROTO_DIR}/admin.proto
-    ${PROTO_DIR}/script_map.proto ${PROTO_DIR}/script_goal.proto
-    ${PROTO_DIR}/script_company.proto ${PROTO_DIR}/script_generic.proto)
+    ${PROTO_DIR}/console.proto
+    ${PROTO_DIR}/admin.proto
+    ${PROTO_DIR}/script_map.proto
+    ${PROTO_DIR}/script_goal.proto
+    ${PROTO_DIR}/script_company.proto
+    ${PROTO_DIR}/script_generic.proto
+    ${PROTO_DIR}/abi_internal.proto)
 
 # Generate output file lists
 set(PROTO_SRCS)
@@ -64,11 +68,11 @@ add_files(
   plugin_loader.cpp
   rpc_handler.cpp
   host_errors.cpp
-  last_int_result.cpp
+  deferred_result.cpp
   chat_notifications.cpp
   handlers/script_company.cpp
   handlers/script_goal.cpp
   handlers/script_map.cpp
-  handlers/script_generic.cpp
+  handlers/abi_internal.cpp
   handlers/rpc_console.cpp
   handlers/admin.cpp)

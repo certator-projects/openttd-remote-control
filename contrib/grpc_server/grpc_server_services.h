@@ -12,7 +12,6 @@
 #include "admin.grpc.pb.h"
 #include "console.grpc.pb.h"
 #include "script_company.grpc.pb.h"
-#include "script_generic.grpc.pb.h"
 #include "script_goal.grpc.pb.h"
 #include "script_map.grpc.pb.h"
 

@@ -26,7 +26,6 @@ enum PluginError
 };
 
 static HostOps g_host_ops = {};
-static RPCHandler g_rpc_handler = nullptr;
 static std::unique_ptr<UdsBridgeServer> g_bridge_server = nullptr;
 static bool g_bridge_enabled = false;
 
@@ -37,7 +36,8 @@ static bool HostOpsReady()
 		   g_host_ops.memory.allocate != nullptr &&
 		   g_host_ops.memory.deallocate != nullptr &&
 		   g_host_ops.memory.release_all != nullptr &&
-		   g_host_ops.memory.destroy != nullptr;
+		   g_host_ops.memory.destroy != nullptr &&
+		   g_host_ops.handle_rpc != nullptr;
 }
 
 extern "C" int32_t GetAPIVersion()
@@ -114,16 +114,11 @@ extern "C" int32_t StartRPCServer()
 	return PLUGIN_SUCCESS;
 }
 
-extern "C" int32_t HandleRPCCalls(RPCHandler handler)
+extern "C" int32_t HandleRPCCalls()
 {
-	if (handler == nullptr)
+	if (!HostOpsReady())
 	{
 		return PLUGIN_ERROR_NULL_PARAMETER;
-	}
-
-	if (g_rpc_handler == nullptr)
-	{
-		g_rpc_handler = handler;
 	}
 
 	if (!g_bridge_enabled || g_bridge_server == nullptr)
@@ -131,5 +126,5 @@ extern "C" int32_t HandleRPCCalls(RPCHandler handler)
 		return 0;
 	}
 
-	return g_bridge_server->Poll(handler, g_host_ops);
+	return g_bridge_server->Poll(g_host_ops);
 }

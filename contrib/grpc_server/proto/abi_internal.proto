@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package openttd;
+
+// Internal ABI / plugin wire format between OpenTTD and UDS/gRPC bridge plugins.
+// Not exposed to external gRPC clients.
+
+// Extended reply for RPC_SCRIPTGOAL_NEW on the UDS/ABI boundary.
+message ScriptGoalNewAbiReply {
+  uint32 goal_id = 1;
+  // When non-zero, goal_id is provisional; poll PollDeferredResult until ready.
+  uint32 deferred_result_id = 2;
+}
+
+message PollDeferredResultRequest {
+  uint32 deferred_result_id = 1;
+}
+
+message PollDeferredResultReply {
+  bool ready = 1;
+  int32 int_value = 2;
+}

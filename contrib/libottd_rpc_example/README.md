@@ -48,13 +48,13 @@ The plugin implements four required functions:
 Returns the plugin API version number.
 
 ### `RegisterHostOps(ops)`
-Called by the host to provide host services (error strings, scoped memory manager, …). The plugin logs this call to stdout.
+Called by the host to provide host services (error strings, scoped memory manager, RPC handler, …). The plugin logs this call to stdout.
 
 ### `StartRPCServer()`
 Called by the host to initialize the plugin. The plugin logs this call to stdout.
 
-### `HandleRPCCalls(handler)`
-Called periodically by the host. The plugin:
+### `HandleRPCCalls()`
+Called periodically by the host. Uses `HostOps::handle_rpc` to call into the game. Returns the number of RPC calls processed, or a negative value on error. The plugin:
 - Makes a `GetMode` RPC call to query the current game mode
 - Outputs a log message when the game mode changes
 - Outputs "plugin idle" every 5 seconds

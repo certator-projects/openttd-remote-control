@@ -5,6 +5,8 @@
  */
 
 #include "call_base.h"
+#include "script_goal_new_call.h"
+#include "pending_deferred_calls.h"
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
@@ -13,7 +15,6 @@
 #include "admin.grpc.pb.h"
 #include "console.grpc.pb.h"
 #include "script_company.grpc.pb.h"
-#include "script_generic.grpc.pb.h"
 #include "script_goal.grpc.pb.h"
 #include "script_map.grpc.pb.h"
 
@@ -27,14 +28,6 @@
 
 /**
  * Macro to simplify gRPC handler registration.
- * Eliminates boilerplate by generating the full CreateABIProxyHandler call.
- * 
- * @param service_var Global service instance variable (e.g., g_admin_service)
- * @param service_type Service type name (e.g., Admin, ScriptCompany)
- * @param req_type Request message type without namespace (e.g., HelloRequest)
- * @param reply_type Reply message type without namespace (e.g., HelloReply)
- * @param rpc_id RPC method ID constant (e.g., RPC_SAY_HELLO) - also used as unique template ID
- * @param method_name gRPC method name without Request prefix (e.g., SayHello)
  */
 #define REGISTER_GRPC_HANDLER(service_var, service_type, req_type, reply_type, rpc_id, method_name)             \
 	CreateABIProxyHandler<openttd::req_type, openttd::reply_type, openttd::service_type::AsyncService, rpc_id>( \
@@ -46,7 +39,6 @@
 static openttd::Admin::AsyncService g_admin_service;
 static openttd::Console::AsyncService g_console_service;
 static openttd::ScriptCompany::AsyncService g_script_company_service;
-static openttd::ScriptGeneric::AsyncService g_script_generic_service;
 static openttd::ScriptGoal::AsyncService g_script_goal_service;
 static openttd::ScriptMap::AsyncService g_script_map_service;
 
@@ -55,7 +47,6 @@ void RegisterGRPCServices(grpc::ServerBuilder &builder)
 	builder.RegisterService(&g_admin_service);
 	builder.RegisterService(&g_console_service);
 	builder.RegisterService(&g_script_company_service);
-	builder.RegisterService(&g_script_generic_service);
 	builder.RegisterService(&g_script_goal_service);
 	builder.RegisterService(&g_script_map_service);
 }
@@ -81,7 +72,7 @@ void RegisterGRPCHandlers(grpc::ServerBuilder &builder, std::unique_ptr<grpc::Se
 	REGISTER_GRPC_HANDLER(g_script_company_service, ScriptCompany, GetQuarterlyCompanyValueRequest, GetQuarterlyCompanyValueReply, RPC_SCRIPTCOMPANY_GET_QUARTERLY_COMPANY_VALUE, GetQuarterlyCompanyValue);
 
 	// ScriptGoal
-	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, NewGoalRequest, NewGoalReply, RPC_SCRIPTGOAL_NEW, New);
+	CreateScriptGoalNewHandler(&g_script_goal_service, g_completion_queue.get());
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, QuestionRequest, QuestionReply, RPC_SCRIPTGOAL_QUESTION, Question);
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, QuestionClientRequest, QuestionClientReply, RPC_SCRIPTGOAL_QUESTION_CLIENT, QuestionClient);
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, CloseQuestionRequest, CloseQuestionReply, RPC_SCRIPTGOAL_CLOSE_QUESTION, CloseQuestion);
@@ -90,7 +81,4 @@ void RegisterGRPCHandlers(grpc::ServerBuilder &builder, std::unique_ptr<grpc::Se
 	REGISTER_GRPC_HANDLER(g_script_map_service, ScriptMap, GetMapSizeXRequest, GetMapSizeXReply, RPC_SCRIPTMAP_GET_MAP_SIZE_X, GetMapSizeX);
 	REGISTER_GRPC_HANDLER(g_script_map_service, ScriptMap, GetMapSizeYRequest, GetMapSizeYReply, RPC_SCRIPTMAP_GET_MAP_SIZE_Y, GetMapSizeY);
 	REGISTER_GRPC_HANDLER(g_script_map_service, ScriptMap, GetTileIndexRequest, GetTileIndexReply, RPC_SCRIPTMAP_GET_TILE_INDEX, GetTileIndex);
-
-	// ScriptGeneric
-	REGISTER_GRPC_HANDLER(g_script_generic_service, ScriptGeneric, GetLastIntResultRequest, GetLastIntResultReply, RPC_SCRIPTGENERIC_GET_LAST_INT_RESULT, GetLastIntResult);
 }

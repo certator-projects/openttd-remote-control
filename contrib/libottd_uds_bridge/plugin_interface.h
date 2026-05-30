@@ -46,7 +46,7 @@ extern "C"
  * Current API version.
  * Increment this when making breaking changes to the plugin interface.
  */
-#define PLUGIN_API_VERSION 1
+#define PLUGIN_API_VERSION 2
 
 	/**
  * Opaque handle to a scoped memory manager instance.
@@ -84,16 +84,6 @@ extern "C"
 	} HostMemoryOps;
 
 	/**
- * Host services provided to the plugin at load time.
- * The plugin copies this table; all host interaction uses these pointers.
- */
-	typedef struct HostOps
-	{
-		GetLastErrorFunc get_last_error;
-		HostMemoryOps memory;
-	} HostOps;
-
-	/**
  * Host RPC handler invoked by the plugin.
  * @param memory_manager Memory manager to use for allocations.
  * @param rpc_method_id Integer identifying the RPC method to call.
@@ -114,6 +104,17 @@ extern "C"
 		size_t *out_response_size,
 		void **out_error,
 		size_t *out_error_size);
+
+	/**
+ * Host services provided to the plugin at load time.
+ * The plugin copies this table; all host interaction uses these pointers.
+ */
+	typedef struct HostOps
+	{
+		GetLastErrorFunc get_last_error;
+		HostMemoryOps memory;
+		RPCHandler handle_rpc;
+	} HostOps;
 
 	/**
  * RPC method IDs.
@@ -150,8 +151,8 @@ extern "C"
 		RPC_SCRIPTMAP_GET_MAP_SIZE_Y = 703,
 		RPC_SCRIPTMAP_GET_TILE_INDEX = 706,
 
-		// ScriptGeneric methods (800-819)
-		RPC_SCRIPTGENERIC_GET_LAST_INT_RESULT = 800,
+		// Internal ABI / plugin methods (900-919)
+		RPC_ABI_INTERNAL_POLL_DEFERRED_RESULT = 901,
 	};
 
 	/**
@@ -174,7 +175,7 @@ extern "C"
 	const char *PluginGetLastError(int32_t error_code);
 
 	/**
- * Register host operations (error strings, memory manager, …).
+ * Register host operations (error strings, memory manager, RPC handler, …).
  * Called once during plugin load. The plugin copies the table.
  * @param ops Host-provided operations (valid until copy completes).
  */
@@ -190,10 +191,10 @@ extern "C"
 	/**
  * Handle pending RPC calls.
  * Called periodically by the host to process any pending RPC requests.
- * @param handler Host RPC handler (response + optional GenericError).
+ * Uses HostOps::handle_rpc registered via RegisterHostOps.
  * @return Number of RPC calls processed, or negative on error.
  */
-	int32_t HandleRPCCalls(RPCHandler handler);
+	int32_t HandleRPCCalls();
 
 #ifdef __cplusplus
 }
