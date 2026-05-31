@@ -15,6 +15,10 @@
 #include "abi_rpc/script_generic.pb.h"
 
 void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::ScriptGoalNewAbiReply &response, openttd::GenericError *error);
+void HandleScriptGoal_Remove(const openttd::RemoveGoalRequest &request, openttd::RemoveGoalReply &response, openttd::GenericError *error);
+void HandleScriptGoal_SetText(const openttd::SetGoalTextRequest &request, openttd::SetGoalTextReply &response, openttd::GenericError *error);
+void HandleScriptGoal_SetCompleted(const openttd::SetGoalCompletedRequest &request, openttd::SetGoalCompletedReply &response, openttd::GenericError *error);
+void HandleScriptGoal_IsCompleted(const openttd::IsGoalCompletedRequest &request, openttd::IsGoalCompletedReply &response, openttd::GenericError *error);
 void HandleScriptGoal_Question(const openttd::QuestionRequest &request, openttd::QuestionReply &response, openttd::GenericError *error);
 void HandleScriptGoal_QuestionClient(const openttd::QuestionClientRequest &request, openttd::QuestionClientReply &response, openttd::GenericError *error);
 void HandleScriptGoal_CloseQuestion(const openttd::CloseQuestionRequest &request, openttd::CloseQuestionReply &response, openttd::GenericError *error);

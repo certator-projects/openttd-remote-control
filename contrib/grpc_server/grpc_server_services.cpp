@@ -73,6 +73,10 @@ void RegisterGRPCHandlers(grpc::ServerBuilder &builder, std::unique_ptr<grpc::Se
 
 	// ScriptGoal
 	CreateScriptGoalNewHandler(&g_script_goal_service, g_completion_queue.get());
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, RemoveGoalRequest, RemoveGoalReply, RPC_SCRIPTGOAL_REMOVE, Remove);
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, SetGoalTextRequest, SetGoalTextReply, RPC_SCRIPTGOAL_SET_TEXT, SetText);
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, SetGoalCompletedRequest, SetGoalCompletedReply, RPC_SCRIPTGOAL_SET_COMPLETED, SetCompleted);
+	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, IsGoalCompletedRequest, IsGoalCompletedReply, RPC_SCRIPTGOAL_IS_COMPLETED, IsCompleted);
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, QuestionRequest, QuestionReply, RPC_SCRIPTGOAL_QUESTION, Question);
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, QuestionClientRequest, QuestionClientReply, RPC_SCRIPTGOAL_QUESTION_CLIENT, QuestionClient);
 	REGISTER_GRPC_HANDLER(g_script_goal_service, ScriptGoal, CloseQuestionRequest, CloseQuestionReply, RPC_SCRIPTGOAL_CLOSE_QUESTION, CloseQuestion);

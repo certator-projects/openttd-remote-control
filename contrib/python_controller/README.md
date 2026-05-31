@@ -16,7 +16,7 @@ Install deps:
 uv sync
 ```
 
-Smoke-test the connection (calls `Admin.SayHello`):
+Smoke-test the connection (lists companies, then creates a goal via `ScriptGoal.New`):
 
 ```bash
 uv run python -m controller.grpc_client_test
@@ -53,10 +53,13 @@ uv run pre-commit run -a
 
 - **`controller/`**: hand-written code and runnable scripts
   - `grpc_services.py`: Dishka provider that creates a gRPC channel and provides typed stubs
-  - `grpc_client_test.py`: minimal “hello” request against the Admin service
+  - `grpc_client_test.py`: minimal flow — `Admin.GetCompanyList` and `ScriptGoal.New`
   - `openttd_test.py`: more complete flow (start/stop server, query map/date/companies, goals, console reset)
+  - `company_value_goal/server.py`: long-running controller for the company-value game mode
   - `generate_proto_models.py`: codegen driver invoked by `./manage.sh generate_proto_models`
 - **`grpc_protos/`**: `.proto` sources (mirrors OpenTTD’s gRPC proto set)
+  - `script_goal.proto` — `New`, `Remove`, `SetText`, `SetCompleted`, `IsCompleted`, `Question`, `QuestionClient`, `CloseQuestion`
+  - `script_generic.proto` — shared `GenericError` / `ErrorCode` only (not a client-facing service)
 - **`grpc_gen/`**: generated betterproto output (committed to the repo)
 
 ## Configuration notes
@@ -72,6 +75,11 @@ If you have a sibling repo at `../openttd-private`, you can copy the upstream pr
 ./manage.sh copy-protos-from-openttd
 ./manage.sh generate_proto_models
 ```
+
+## RPC usage notes
+
+- **`ScriptGoal.New`** returns the final `goal_id` in `NewGoalReply`. The gRPC server waits internally for deferred script results; clients should not poll a separate `GetLastIntResult` endpoint (removed).
+- **`ScriptGoal.QuestionClient`** is used by `company_value_goal` to show join instructions in the in-game question UI, with chat as fallback.
 
 ## Troubleshooting
 

@@ -91,7 +91,7 @@ GPLv2-compatible runtime plugin loaded into OpenTTD. It exposes the ABI RPC surf
 
 * configured with `OTTD_UDS_BRIDGE_ENABLED` and `OTTD_UDS_SOCKET_PATH`,
 * uses Boost.Asio for local IPC ([`contrib/ottd_uds_ipc`](/contrib/ottd_uds_ipc)),
-* see [contrib/libottd_uds_bridge](/contrib/libottd_uds_bridge) (build via `manage.sh build-plugin-libottd_uds_bridge-debug`).
+* see [contrib/libottd_uds_bridge/README.md](contrib/libottd_uds_bridge/README.md) (build via `manage.sh build-plugin-libottd_uds_bridge-debug`).
 
 ---
 
@@ -101,6 +101,7 @@ Standalone executable (not a plugin) that:
 
 * runs the async gRPC server,
 * forwards each RPC to OpenTTD through the UDS bridge,
+* waits internally for deferred script RPC results where needed (for example `ScriptGoal.New`),
 * is built with the Apache-2.0 gRPC stack in its **own** pixi environment ([`contrib/grpc_server/pixi.toml`](/contrib/grpc_server/pixi.toml)),
 * has a dedicated Docker image ([`contrib/grpc_server/Dockerfile`](/contrib/grpc_server/Dockerfile)).
 
@@ -221,7 +222,8 @@ The runtime plugin ABI is intentionally designed to remain independent from Open
 
 Design goals:
 
-* stable C ABI boundary,
+* stable C ABI boundary (`plugin_interface.h`, currently **API version 2**),
+* host services supplied via `RegisterHostOps` (`get_last_error`, scoped memory vtable, `handle_rpc`) — plugins must not link OpenTTD symbols,
 * protobuf-defined messages (under `src/3rdparty/extras/abi_rpc/proto/` and mirrored in each plugin),
 * opaque handles,
 * no OpenTTD internal structure exposure,

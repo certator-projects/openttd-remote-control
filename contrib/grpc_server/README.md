@@ -50,13 +50,34 @@ All methods below are registered with the async gRPC server. Each forwards the r
 | `openttd.Console` | `Setting` | [`console.proto`](proto/console.proto) |
 | `openttd.Console` | `Restart` | [`console.proto`](proto/console.proto) |
 | `openttd.ScriptCompany` | `GetQuarterlyCompanyValue` | [`script_company.proto`](proto/script_company.proto) |
-| `openttd.ScriptGoal` | `New` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `New` | [`script_goal.proto`](proto/script_goal.proto) — see [Deferred goal creation](#deferred-goal-creation) |
+| `openttd.ScriptGoal` | `Remove` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `SetText` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `SetCompleted` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `IsCompleted` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `Question` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `QuestionClient` | [`script_goal.proto`](proto/script_goal.proto) |
+| `openttd.ScriptGoal` | `CloseQuestion` | [`script_goal.proto`](proto/script_goal.proto) |
 | `openttd.ScriptMap` | `GetMapSizeX` | [`script_map.proto`](proto/script_map.proto) |
 | `openttd.ScriptMap` | `GetMapSizeY` | [`script_map.proto`](proto/script_map.proto) |
 | `openttd.ScriptMap` | `GetTileIndex` | [`script_map.proto`](proto/script_map.proto) |
-| `openttd.ScriptGeneric` | `GetLastIntResult` | [`script_generic.proto`](proto/script_generic.proto) |
+
+[`script_generic.proto`](proto/script_generic.proto) defines shared `GenericError` / `ErrorCode` types only; it is not exposed as a gRPC service.
 
 Whether a call succeeds depends on game state and host-side RPC support (for example, console commands may be server-only). Failures are reported via gRPC error status and/or a `GenericError` payload from the host.
+
+### Deferred goal creation
+
+`ScriptGoal.New` is **asynchronous** in networked games: the game script suspends until the DoCommand completes, so the real `goal_id` is not available in the first host RPC response.
+
+Flow:
+
+1. gRPC `New` forwards to host `RPC_SCRIPTGOAL_NEW`.
+2. When the goal is still pending, the host returns a `ScriptGoalNewAbiReply` with `deferred_result_id` (internal wire format in [`abi_internal.proto`](proto/abi_internal.proto)).
+3. [`script_goal_new_call.h`](script_goal_new_call.h) polls `RPC_ABI_INTERNAL_POLL_DEFERRED_RESULT` from the completion-queue loop ([`pending_deferred_calls.cpp`](pending_deferred_calls.cpp)) until the deferred result is ready or a 30s deadline expires.
+4. The gRPC client receives a single `NewGoalReply` with the final `goal_id`.
+
+External clients do **not** call `PollDeferredResult` directly; polling is handled inside `ottd_grpc_server`.
 
 ## Building
 
@@ -164,14 +185,16 @@ External gRPC client
         |  UDS framed RPC (OTRP protocol)
         v
   libottd_uds_bridge (OpenTTD plugin)
-        |  host RPCHandler + ScopedMemoryManager
+        |  HostOps::handle_rpc + ScopedMemoryManager (via HostOps::memory)
         v
   OpenTTD core (abi_rpc handlers)
 ```
 
+The UDS bridge plugin must be built against [`plugin_interface.h`](plugin_interface.h) **API version 2**. Host services (memory manager, error strings, RPC handler) are passed through `RegisterHostOps`; plugins must not link against symbols from the OpenTTD binary.
+
 ### gRPC to host translation
 
-Each registered method uses `GenericABIProxyHandler` ([`call_base.h`](call_base.h)):
+Each registered method uses either `GenericABIProxyHandler` ([`call_base.h`](call_base.h)) or a dedicated async handler:
 
 1. Accept the gRPC request on the async completion queue
 2. Serialize the gRPC request protobuf
@@ -179,7 +202,9 @@ Each registered method uses `GenericABIProxyHandler` ([`call_base.h`](call_base.
 4. Parse the host response protobuf into the gRPC reply type
 5. Map `GenericError` to gRPC status codes when present
 
-The executable runs its own completion-queue loop in [`main.cpp`](main.cpp) (it no longer relies on OpenTTD’s `HandleRPCCalls` poll).
+`ScriptGoal.New` uses a dedicated handler ([`script_goal_new_call.h`](script_goal_new_call.h)) that may poll internal deferred results before finishing the client RPC.
+
+The executable runs its own completion-queue loop in [`main.cpp`](main.cpp). On idle CQ timeouts it calls `PollPendingDeferredGrpcCalls()` so in-flight `New` requests can complete without blocking the game thread.
 
 ### Example: GetGameMode flow
 
@@ -194,7 +219,7 @@ GenericABIProxyHandler (Admin::GetGameMode)
      v
 libottd_uds_bridge
      |
-     | host RPC handler
+     | HostOps::handle_rpc (host RPCHandler)
      v
 OpenTTD core
      |
@@ -212,7 +237,7 @@ Once the corresponding abi_rpc method exists in OpenTTD:
 1. **Add proto definition** under `proto/` (or extend an existing service)
 2. **Add the RPC method ID** to [`plugin_interface.h`](/src/3rdparty/extras/abi_rpc/plugin_interface.h) and implement the host handler
 3. **Rebuild** (`build-grpc_server-debug`) to regenerate gRPC stubs
-4. **Register the handler** in [`grpc_server_services.cpp`](grpc_server_services.cpp) using `REGISTER_GRPC_HANDLER`
+4. **Register the handler** in [`grpc_server_services.cpp`](grpc_server_services.cpp) using `REGISTER_GRPC_HANDLER`, or a custom async handler if the call needs deferred polling (see `ScriptGoal.New`)
 5. **Test** with grpcurl or a gRPC client
 
 ### Error handling
@@ -243,6 +268,12 @@ Once the corresponding abi_rpc method exists in OpenTTD:
 - Confirm the method is listed in the table above and use the correct service name (e.g. `openttd.Admin/GetGameMode`)
 - Pass proto files to grpcurl with `-import-path proto -proto <file>.proto` (reflection is not supported)
 - Check OpenTTD logs for host-side RPC or `GenericError` details; many admin/console calls require a running dedicated server or specific game state
+
+### `ScriptGoal.New` times out
+
+- Ensure OpenTTD is running a game with an active game script and the game is advancing (deferred results resolve on a later tick)
+- Rebuild `ottd_grpc_server` and `libottd_uds_bridge` against plugin API v2
+- Confirm the UDS bridge plugin is loaded (`OTTD_USE_RPC_PLUGIN`, `OTTD_UDS_BRIDGE_ENABLED=1`)
 
 ## License
 

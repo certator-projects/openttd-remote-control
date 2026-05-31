@@ -21,6 +21,10 @@ enum GoalQuestionType {
 
 service ScriptGoal {
   rpc New(NewGoalRequest) returns (NewGoalReply) {}
+  rpc Remove(RemoveGoalRequest) returns (RemoveGoalReply) {}
+  rpc SetText(SetGoalTextRequest) returns (SetGoalTextReply) {}
+  rpc SetCompleted(SetGoalCompletedRequest) returns (SetGoalCompletedReply) {}
+  rpc IsCompleted(IsGoalCompletedRequest) returns (IsGoalCompletedReply) {}
   rpc Question(QuestionRequest) returns (QuestionReply) {}
   rpc QuestionClient(QuestionClientRequest) returns (QuestionClientReply) {}
   rpc CloseQuestion(CloseQuestionRequest) returns (CloseQuestionReply) {}
@@ -36,6 +40,40 @@ message NewGoalRequest {
 
 message NewGoalReply {
   uint32 goal_id = 1;
+}
+
+message RemoveGoalRequest {
+  uint32 goal_id = 1;
+}
+
+message RemoveGoalReply {
+  bool success = 1;
+}
+
+message SetGoalTextRequest {
+  uint32 goal_id = 1;
+  string goal_text = 2;
+}
+
+message SetGoalTextReply {
+  bool success = 1;
+}
+
+message SetGoalCompletedRequest {
+  uint32 goal_id = 1;
+  bool completed = 2;
+}
+
+message SetGoalCompletedReply {
+  bool success = 1;
+}
+
+message IsGoalCompletedRequest {
+  uint32 goal_id = 1;
+}
+
+message IsGoalCompletedReply {
+  bool completed = 1;
 }
 
 // Ask a question of all players in a company (or all companies when goal_global is true).

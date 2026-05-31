@@ -5,8 +5,9 @@ This is an example plugin library that demonstrates how to implement the OpenTTD
 ## Overview
 
 The example plugin showcases:
-- Implementing the required plugin interface functions
-- Making RPC calls to query game state
+- Implementing the required plugin interface functions (API version **2**)
+- Using `HostOps` for all host interaction (no linking against OpenTTD symbols)
+- Making RPC calls to query game state via `HostOps::handle_rpc`
 - Tracking game mode changes
 - Outputting periodic status messages
 
@@ -23,6 +24,12 @@ mkdir build
 cd build
 cmake ..
 make
+```
+
+From the repository root you can also use:
+
+```bash
+./manage.sh build-libottd_rpc_example
 ```
 
 ## Installation
@@ -42,19 +49,38 @@ sudo cmake --install .
 
 ## Usage
 
-The plugin implements four required functions:
+Load the plugin in OpenTTD:
+
+```bash
+export OTTD_USE_RPC_PLUGIN=/path/to/libottd_rpc_example.dylib
+./openttd
+```
+
+The plugin implements four required exports:
 
 ### `GetAPIVersion()`
-Returns the plugin API version number.
+
+Returns `PLUGIN_API_VERSION` (**2**). Must match the host’s expected API version or the plugin is rejected at load time.
 
 ### `RegisterHostOps(ops)`
-Called by the host to provide host services (error strings, scoped memory manager, RPC handler, …). The plugin logs this call to stdout.
+
+Called once during plugin load. The host provides:
+
+- `get_last_error` — resolve host error codes to strings
+- `memory` — scoped memory manager vtable
+- `handle_rpc` — call into OpenTTD RPC handlers
+
+The plugin copies the table and must not depend on host symbols beyond these function pointers.
 
 ### `StartRPCServer()`
-Called by the host to initialize the plugin. The plugin logs this call to stdout.
+
+Called by the host to initialize the plugin. The example plugin logs this call and resets its idle timer.
 
 ### `HandleRPCCalls()`
-Called periodically by the host. Uses `HostOps::handle_rpc` to call into the game. Returns the number of RPC calls processed, or a negative value on error. The plugin:
+
+Called periodically from the game loop. Uses `HostOps::handle_rpc` to invoke host RPCs. Returns the number of RPC calls processed, or a **negative** value on error (the host logs negative returns).
+
+The example plugin:
 - Makes a `GetMode` RPC call to query the current game mode
 - Outputs a log message when the game mode changes
 - Outputs "plugin idle" every 5 seconds
@@ -80,26 +106,26 @@ libottd_rpc_example/
 ├── CMakeLists.txt           # Build configuration
 ├── README.md                # This file
 ├── example_plugin.cpp       # Plugin implementation
-├── plugin_interface.h       # C ABI interface definitions
-├── plugin_interface.h       # Plugin ABI (includes HostOps)
+├── plugin_interface.h       # C ABI (synced from src/3rdparty/extras/abi_rpc/)
 └── proto/
-    └── plugin_rpc.proto     # Protobuf definitions
+    ├── admin.proto          # Example RPC messages
+    └── abi_internal.proto   # Internal wire types (reference copy)
 ```
 
 ## Implementation Details
 
 ### Memory Management
 
-The plugin uses the scoped memory manager provided by the host for all RPC-related allocations. This ensures proper memory cleanup and prevents leaks.
+The plugin uses `HostOps::memory` for all RPC-related allocations. This ensures proper cleanup and avoids linking against host `ScopedMemoryManager_*` symbols.
 
 ### RPC Communication
 
-1. Plugin creates a memory manager instance
-2. Plugin serializes a protobuf request and allocates buffer for it
-3. Plugin calls the RPC handler with the request
-4. Host deserializes request, processes it, and returns serialized response
-5. Plugin deserializes response and extracts data
-6. Plugin destroys the memory manager, cleaning up all allocations
+1. Plugin creates a memory manager via `host_ops.memory.create`
+2. Plugin serializes a protobuf request into a buffer allocated with `host_ops.memory.allocate`
+3. Plugin calls `host_ops.handle_rpc(...)` with the serialized request
+4. Host deserializes, processes, and returns serialized response (and optional `GenericError`)
+5. Plugin deserializes the response
+6. Plugin destroys the memory manager with `host_ops.memory.destroy`
 
 ### State Tracking
 

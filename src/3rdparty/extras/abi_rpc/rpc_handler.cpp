@@ -167,6 +167,10 @@ void RPCHandler_Initialize()
 
 	// ScriptGoal methods
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_NEW, openttd::NewGoalRequest, openttd::ScriptGoalNewAbiReply, HandleScriptGoal_New);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_REMOVE, openttd::RemoveGoalRequest, openttd::RemoveGoalReply, HandleScriptGoal_Remove);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_SET_TEXT, openttd::SetGoalTextRequest, openttd::SetGoalTextReply, HandleScriptGoal_SetText);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_SET_COMPLETED, openttd::SetGoalCompletedRequest, openttd::SetGoalCompletedReply, HandleScriptGoal_SetCompleted);
+	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_IS_COMPLETED, openttd::IsGoalCompletedRequest, openttd::IsGoalCompletedReply, HandleScriptGoal_IsCompleted);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_QUESTION, openttd::QuestionRequest, openttd::QuestionReply, HandleScriptGoal_Question);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_QUESTION_CLIENT, openttd::QuestionClientRequest, openttd::QuestionClientReply, HandleScriptGoal_QuestionClient);
 	REGISTER_RPC_HANDLER(RPC_SCRIPTGOAL_CLOSE_QUESTION, openttd::CloseQuestionRequest, openttd::CloseQuestionReply, HandleScriptGoal_CloseQuestion);

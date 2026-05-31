@@ -66,6 +66,48 @@ class NewGoalReply(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class RemoveGoalRequest(betterproto.Message):
+    goal_id: int = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RemoveGoalReply(betterproto.Message):
+    success: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class SetGoalTextRequest(betterproto.Message):
+    goal_id: int = betterproto.uint32_field(1)
+    goal_text: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class SetGoalTextReply(betterproto.Message):
+    success: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class SetGoalCompletedRequest(betterproto.Message):
+    goal_id: int = betterproto.uint32_field(1)
+    completed: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class SetGoalCompletedReply(betterproto.Message):
+    success: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class IsGoalCompletedRequest(betterproto.Message):
+    goal_id: int = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class IsGoalCompletedReply(betterproto.Message):
+    completed: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class QuestionRequest(betterproto.Message):
     """
     Ask a question of all players in a company (or all companies when goal_global is true).
@@ -133,6 +175,74 @@ class ScriptGoalStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def remove(
+        self,
+        remove_goal_request: "RemoveGoalRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "RemoveGoalReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/Remove",
+            remove_goal_request,
+            RemoveGoalReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def set_text(
+        self,
+        set_goal_text_request: "SetGoalTextRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "SetGoalTextReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/SetText",
+            set_goal_text_request,
+            SetGoalTextReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def set_completed(
+        self,
+        set_goal_completed_request: "SetGoalCompletedRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "SetGoalCompletedReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/SetCompleted",
+            set_goal_completed_request,
+            SetGoalCompletedReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def is_completed(
+        self,
+        is_goal_completed_request: "IsGoalCompletedRequest",
+        *,
+        timeout: float | None = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "IsGoalCompletedReply":
+        return await self._unary_unary(
+            "/openttd.ScriptGoal/IsCompleted",
+            is_goal_completed_request,
+            IsGoalCompletedReply,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def question(
         self,
         question_request: "QuestionRequest",
@@ -189,6 +299,26 @@ class ScriptGoalBase(ServiceBase):
     async def new(self, new_goal_request: "NewGoalRequest") -> "NewGoalReply":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def remove(
+        self, remove_goal_request: "RemoveGoalRequest"
+    ) -> "RemoveGoalReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def set_text(
+        self, set_goal_text_request: "SetGoalTextRequest"
+    ) -> "SetGoalTextReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def set_completed(
+        self, set_goal_completed_request: "SetGoalCompletedRequest"
+    ) -> "SetGoalCompletedReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def is_completed(
+        self, is_goal_completed_request: "IsGoalCompletedRequest"
+    ) -> "IsGoalCompletedReply":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def question(self, question_request: "QuestionRequest") -> "QuestionReply":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -207,6 +337,36 @@ class ScriptGoalBase(ServiceBase):
     ) -> None:
         request = await stream.recv_message()
         response = await self.new(request)
+        await stream.send_message(response)
+
+    async def __rpc_remove(
+        self, stream: "grpclib.server.Stream[RemoveGoalRequest, RemoveGoalReply]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.remove(request)
+        await stream.send_message(response)
+
+    async def __rpc_set_text(
+        self, stream: "grpclib.server.Stream[SetGoalTextRequest, SetGoalTextReply]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.set_text(request)
+        await stream.send_message(response)
+
+    async def __rpc_set_completed(
+        self,
+        stream: "grpclib.server.Stream[SetGoalCompletedRequest, SetGoalCompletedReply]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.set_completed(request)
+        await stream.send_message(response)
+
+    async def __rpc_is_completed(
+        self,
+        stream: "grpclib.server.Stream[IsGoalCompletedRequest, IsGoalCompletedReply]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.is_completed(request)
         await stream.send_message(response)
 
     async def __rpc_question(
@@ -238,6 +398,30 @@ class ScriptGoalBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 NewGoalRequest,
                 NewGoalReply,
+            ),
+            "/openttd.ScriptGoal/Remove": grpclib.const.Handler(
+                self.__rpc_remove,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RemoveGoalRequest,
+                RemoveGoalReply,
+            ),
+            "/openttd.ScriptGoal/SetText": grpclib.const.Handler(
+                self.__rpc_set_text,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SetGoalTextRequest,
+                SetGoalTextReply,
+            ),
+            "/openttd.ScriptGoal/SetCompleted": grpclib.const.Handler(
+                self.__rpc_set_completed,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SetGoalCompletedRequest,
+                SetGoalCompletedReply,
+            ),
+            "/openttd.ScriptGoal/IsCompleted": grpclib.const.Handler(
+                self.__rpc_is_completed,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                IsGoalCompletedRequest,
+                IsGoalCompletedReply,
             ),
             "/openttd.ScriptGoal/Question": grpclib.const.Handler(
                 self.__rpc_question,

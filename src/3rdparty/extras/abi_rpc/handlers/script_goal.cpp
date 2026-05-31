@@ -88,6 +88,71 @@ void HandleScriptGoal_New(const openttd::NewGoalRequest &request, openttd::Scrip
 	response.set_goal_id(goal_id.base());
 }
 
+void HandleScriptGoal_Remove(const openttd::RemoveGoalRequest &request, openttd::RemoveGoalReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_success(false);
+		return;
+	}
+
+	const GoalID goal_id(static_cast<uint16_t>(request.goal_id()));
+	bool success = ExecuteScriptCommand([&]()
+										{ return ::ScriptGoal::Remove(goal_id); });
+	response.set_success(success);
+}
+
+void HandleScriptGoal_SetText(const openttd::SetGoalTextRequest &request, openttd::SetGoalTextReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_success(false);
+		return;
+	}
+
+	const GoalID goal_id(static_cast<uint16_t>(request.goal_id()));
+	bool success = ExecuteScriptCommand([&]()
+										{
+		RawText *text = new RawText(request.goal_text());
+		return ::ScriptGoal::SetText(goal_id, text); });
+
+	response.set_success(success);
+}
+
+void HandleScriptGoal_SetCompleted(const openttd::SetGoalCompletedRequest &request, openttd::SetGoalCompletedReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_success(false);
+		return;
+	}
+
+	const GoalID goal_id(static_cast<uint16_t>(request.goal_id()));
+	bool success = ExecuteScriptCommand([&]()
+										{ return ::ScriptGoal::SetCompleted(goal_id, request.completed()); });
+	response.set_success(success);
+}
+
+void HandleScriptGoal_IsCompleted(const openttd::IsGoalCompletedRequest &request, openttd::IsGoalCompletedReply &response, openttd::GenericError *error)
+{
+	ScriptExecutionContext ctx;
+	if (!ctx.IsValid())
+	{
+		SetGameScriptUnavailable(error);
+		response.set_completed(false);
+		return;
+	}
+
+	const GoalID goal_id(static_cast<uint16_t>(request.goal_id()));
+	response.set_completed(::ScriptGoal::IsCompleted(goal_id));
+}
+
 void HandleScriptGoal_Question(const openttd::QuestionRequest &request, openttd::QuestionReply &response, openttd::GenericError *error)
 {
 	ScriptExecutionContext ctx;

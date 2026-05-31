@@ -20,11 +20,11 @@ Unless controller determines that game mode is GameModeType.MULTIPLAYER_SERVER, 
 
 Initially when server starts, it is expected that openTTD will create default company without connected clients. Controller script should remove that company with reset_company RPC method.
 
-Controller also should create a global game goal "Reach 10M company value".
+Controller also should create a global game goal "Reach 10M company value" via `ScriptGoal.New`. The response includes the real `goal_id` once the game script finishes creating the goal (the gRPC server handles deferred completion internally).
 
 ### Network client (player)
 
-When network client connects, controller script should green it with publich chat message. Then with little delay, it should send him game instructions - that player need to create a company, earn money and reach 10M company value goal.
+When network client connects, controller script should greet them with a public chat message. Then, with a little delay, it should send game instructions via `ScriptGoal.QuestionClient` (in-game popup with a Start button), falling back to private chat if the question RPC fails.
 
 ### Player's company
 
