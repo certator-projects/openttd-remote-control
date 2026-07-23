@@ -1,10 +1,15 @@
-# OpenTTD gRPC Runtime Integration Demo
+# OpenTTD Remote Control & External Scripting API
 
-Experimental runtime integration layer for OpenTTD using a dynamically loaded plugin and protobuf-based ABI communication.
+An experimental runtime integration layer that enables external remote control and multi-language scripting for OpenTTD dedicated servers. 
+
+Instead of writing game logic internally in Squirrel, this project provides a stable API bridge (via gRPC and protobuf) allowing you to:
+* **Control the server externally:** Automate admin tasks and server management.
+* **Write scripts in Python (or other languages):** Interact with the game state out-of-process.
+* **Keep the game core clean:** Uses a dynamically loaded runtime plugin to avoid modifying the OpenTTD binary.
 
 ## Fork notes
 
-This fork is based on upstream OpenTTD **15.3** (commit `14ec60f`), not `master`, so the dedicated server stays compatible with the official client.
+This fork is based on upstream [OpenTTD](https://github.com/OpenTTD/OpenTTD) [**15.3**](https://github.com/OpenTTD/OpenTTD/tree/15.3) (commit `14ec60f`), not `master`, so the dedicated server stays compatible with the official client.
 
 Changes since that baseline:
 
