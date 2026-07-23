@@ -19,8 +19,8 @@ jobs:
         run: |
           pip install gdown
           # Put your File ID in the input box when running the action
-          gdown --id "${{ github.event.inputs.bundle_url }}" -O repo.bundle        
-          
+          gdown  -O repo.bundle "${{ github.event.inputs.bundle_url }}"       
+
       - name: Verify bundle
         run: git bundle verify repo.bundle
         
