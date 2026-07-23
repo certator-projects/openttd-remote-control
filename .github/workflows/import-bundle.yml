@@ -6,6 +6,9 @@ on:
         description: 'Direct download URL for the Git bundle'
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   import-history:
     runs-on: ubuntu-latest
@@ -19,7 +22,7 @@ jobs:
         run: |
           pip install gdown
           # Put your File ID in the input box when running the action
-          gdown  -O repo.bundle "${{ github.event.inputs.bundle_url }}"       
+          gdown  -O repo.bundle "${{ github.event.inputs.bundle_url }}"        
 
       - name: Verify bundle
         run: git bundle verify repo.bundle
