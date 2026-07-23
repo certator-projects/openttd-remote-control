@@ -7,6 +7,29 @@ Instead of writing game logic internally in Squirrel, this project provides a st
 * **Write scripts in Python (or other languages):** Interact with the game state out-of-process.
 * **Keep the game core clean:** Uses a dynamically loaded runtime plugin to avoid modifying the OpenTTD binary.
 
+*Example connecting to the server:*
+
+```python
+import asyncio
+from grpclib.client import Channel
+import grpc_gen.admin.openttd as admin
+
+async def main() -> None:
+    channel = Channel("127.0.0.1", 50051)
+    stub = admin.AdminStub(channel)
+
+    await stub.start_network_server(admin.StartNetworkServerRequest(
+        server_name="My Server",
+        scenario_path="example.scn",
+    ))
+    await stub.send_chat_message(admin.SendChatMessageRequest(
+        message="Hello from Python!",
+    ))
+    channel.close()
+
+asyncio.run(main())
+```
+
 ## Fork notes
 
 This fork is based on upstream [OpenTTD](https://github.com/OpenTTD/OpenTTD) [**15.3**](https://github.com/OpenTTD/OpenTTD/tree/15.3) (commit `14ec60f`), not `master`, so the dedicated server stays compatible with the official client.
